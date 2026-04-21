@@ -5,7 +5,8 @@ const UserSchema = new mongoose.Schema({
   _id: String, // Explicitly define _id as String to allow frontend-generated IDs (e.g., 'u123456')
   username: { type: String, required: true, unique: true },
   phone: { type: String, sparse: true, unique: true }, // Phone number for login - sparse allows multiple nulls
-  password: { type: String, required: true },
+  password: { type: String }, // Optional - Google OAuth users won't have a password
+  googleId: { type: String, sparse: true, unique: true }, // Google OAuth user ID
   email: { type: String },
   balance: { type: Number, default: 100.00 },
   reservedBalance: { type: Number, default: 0 }, // For holding bets during matches

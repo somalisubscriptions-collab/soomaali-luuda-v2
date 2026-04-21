@@ -8,6 +8,7 @@ interface AuthContextType {
   loading: boolean;
   login: (phone: string, password: string) => Promise<void>;
   register: (fullName: string, phone: string, password: string, referralCode?: string) => Promise<void>;
+  loginWithGoogleToken: (token: string) => Promise<void>;
   logout: () => void;
   requestPasswordReset: (phoneOrUsername: string) => Promise<void>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
@@ -93,6 +94,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem('ludo_token', response.token);
   };
 
+  const loginWithGoogleToken = async (token: string) => {
+    localStorage.setItem('ludo_token', token);
+    try {
+      const currentUser = await authAPI.getCurrentUser();
+      setUser(currentUser);
+      localStorage.setItem('ludo_user', JSON.stringify(currentUser));
+    } catch (err) {
+      localStorage.removeItem('ludo_token');
+      throw new Error('Failed to load user from Google token');
+    }
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem('ludo_user');
@@ -115,6 +128,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         loading,
         login,
         register,
+        loginWithGoogleToken,
         logout,
         requestPasswordReset,
         resetPassword,

@@ -74,8 +74,9 @@ const AppContent: React.FC = () => {
 
   const { gameStarted, players, currentPlayerIndex, turnState, winners, timer } = ludoState;
 
-  const { user, isAuthenticated, loading: authLoading, refreshUser } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, refreshUser, loginWithGoogleToken } = useAuth();
   const [view, setView] = useState<View>('login');
+  const [googleAuthError, setGoogleAuthError] = useState<string | null>(null);
   const [showSuperAdminOverlay, setShowSuperAdminOverlay] = useState(false);
   const [showMiniAdminDashboard, setShowMiniAdminDashboard] = useState(false);
   const [isRejoining, setIsRejoining] = useState(false); // New state for rejoining status
@@ -88,6 +89,29 @@ const AppContent: React.FC = () => {
 
   // Connect to global socket for financial notifications
   useGlobalSocket(user?.id || user?._id, isAuthenticated);
+
+  // Handle Google OAuth redirect — runs once on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const googleToken = params.get('google_token');
+    const authError = params.get('auth_error');
+
+    if (googleToken) {
+      // Clear the token from the URL immediately
+      window.history.replaceState({}, document.title, window.location.pathname);
+      loginWithGoogleToken(googleToken)
+        .then(() => setView('setup'))
+        .catch(() => setGoogleAuthError('Google login failed. Please try again.'));
+    } else if (authError) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      const messages: Record<string, string> = {
+        google_denied: 'Google sign-in was cancelled.',
+        token_failed: 'Google sign-in failed. Please try again.',
+        server_error: 'Server error during Google login. Please try again.',
+      };
+      setGoogleAuthError(messages[authError] || 'Google login failed. Please try again.');
+    }
+  }, []);
 
   // Unlock audio and request PUSH NOTIFICATION permissions on first user interaction
   useEffect(() => {
@@ -459,7 +483,7 @@ const AppContent: React.FC = () => {
   // Show login/register/reset password if not authenticated
   if (!isAuthenticated) {
     if (view === 'login') {
-      return <Login onSuccess={handleLoginSuccess} onSwitchToRegister={handleSwitchToRegister} onSwitchToResetPassword={handleSwitchToResetPassword} />;
+      return <Login onSuccess={handleLoginSuccess} onSwitchToRegister={handleSwitchToRegister} onSwitchToResetPassword={handleSwitchToResetPassword} googleAuthError={googleAuthError} />;
     }
     if (view === 'register') {
       return <Register onSuccess={handleRegisterSuccess} onSwitchToLogin={handleSwitchToLogin} />;

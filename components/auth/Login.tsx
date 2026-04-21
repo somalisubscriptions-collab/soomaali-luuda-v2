@@ -5,18 +5,31 @@ interface LoginProps {
   onSuccess: () => void;
   onSwitchToRegister: () => void;
   onSwitchToResetPassword?: () => void;
+  googleAuthError?: string | null;
 }
 
-const Login: React.FC<LoginProps> = ({ onSuccess, onSwitchToRegister, onSwitchToResetPassword }) => {
+// The backend base URL — matches apiConfig.ts logic
+const BACKEND_URL =
+  import.meta.env.PROD
+    ? 'https://api.laadhuu.online'
+    : 'http://localhost:5000';
+
+const Login: React.FC<LoginProps> = ({
+  onSuccess,
+  onSwitchToRegister,
+  onSwitchToResetPassword,
+  googleAuthError,
+}) => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const { login } = useAuth();
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, ''); // Only allow digits
+    const value = e.target.value.replace(/\D/g, '');
     setPhone(value);
   };
 
@@ -31,123 +44,351 @@ const Login: React.FC<LoginProps> = ({ onSuccess, onSwitchToRegister, onSwitchTo
     }
 
     setLoading(true);
-
     try {
-      // Send full number with country code
       const fullPhoneNumber = '+252' + phone;
       await login(fullPhoneNumber, password);
       setSuccess('Login Successful! Redirecting...');
-      setTimeout(() => {
-        onSuccess();
-      }, 1500);
+      setTimeout(() => onSuccess(), 1200);
     } catch (err: any) {
       const errorMsg = err.message || '';
       if (errorMsg.toLowerCase().includes('password') || errorMsg.toLowerCase().includes('invalid')) {
-        setError('numberka ama passwordka aad isticmaashay waa qalad fadlan iska hubi ama nagala soo xariir whatsapp ka si aan kuu caawinno');
+        setError('Numberka ama passwordka waa qalad. Fadlan hubi ama nagala soo xariir WhatsApp.');
       } else {
-        setError(errorMsg || 'Failed to login. Please check your phone number and password.');
+        setError(errorMsg || 'Failed to login. Please check your details.');
       }
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
-        <div className="flex justify-center mb-6">
-          <img src="/icons/laddea.png" alt="Ludo Game Logo" className="h-20 w-auto" />
-        </div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">
-          Welcome Back
-        </h2>
+  const handleGoogleLogin = () => {
+    setGoogleLoading(true);
+    window.location.href = `${BACKEND_URL}/api/auth/google`;
+  };
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-gray-600 text-sm font-bold mb-2">
-              Phone Number
-            </label>
-            <div className="flex items-center bg-gray-50 border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-cyan-500">
-              <div className="flex items-center px-3 py-3 bg-gray-200 border-r border-gray-300">
-                <span className="text-xl mr-2">🇸🇴</span>
-                <span className="text-gray-800 font-medium">+252</span>
+  const displayError = error || googleAuthError;
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #0f0c29 0%, #1a1a4e 50%, #0f0c29 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '16px',
+      fontFamily: "'Inter', system-ui, sans-serif",
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        .auth-card {
+          background: rgba(255,255,255,0.04);
+          backdrop-filter: blur(24px);
+          border: 1px solid rgba(255,255,255,0.10);
+          border-radius: 24px;
+          padding: 40px 36px;
+          width: 100%;
+          max-width: 420px;
+          box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+        }
+
+        .google-btn {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          background: #fff;
+          color: #1f1f1f;
+          font-weight: 600;
+          font-size: 15px;
+          padding: 14px 20px;
+          border-radius: 12px;
+          border: none;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+          letter-spacing: 0.01em;
+        }
+        .google-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+        .google-btn:active { transform: translateY(0); }
+        .google-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+        .divider {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin: 24px 0;
+          color: rgba(255,255,255,0.3);
+          font-size: 13px;
+        }
+        .divider::before, .divider::after {
+          content: '';
+          flex: 1;
+          height: 1px;
+          background: rgba(255,255,255,0.12);
+        }
+
+        .input-group { margin-bottom: 16px; }
+        .input-label {
+          display: block;
+          color: rgba(255,255,255,0.6);
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          margin-bottom: 8px;
+        }
+        .phone-row {
+          display: flex;
+          align-items: center;
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 12px;
+          overflow: hidden;
+          transition: border-color 0.2s;
+        }
+        .phone-row:focus-within { border-color: rgba(99,102,241,0.8); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+        .phone-prefix {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 14px 14px;
+          background: rgba(255,255,255,0.05);
+          border-right: 1px solid rgba(255,255,255,0.10);
+          color: rgba(255,255,255,0.8);
+          font-size: 14px;
+          font-weight: 600;
+          white-space: nowrap;
+        }
+        .auth-input {
+          flex: 1;
+          background: transparent;
+          border: none;
+          padding: 14px 14px;
+          color: #fff;
+          font-size: 15px;
+          outline: none;
+        }
+        .auth-input::placeholder { color: rgba(255,255,255,0.25); }
+
+        .password-input {
+          width: 100%;
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 12px;
+          padding: 14px 16px;
+          color: #fff;
+          font-size: 15px;
+          outline: none;
+          transition: border-color 0.2s;
+          box-sizing: border-box;
+        }
+        .password-input:focus { border-color: rgba(99,102,241,0.8); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+        .password-input::placeholder { color: rgba(255,255,255,0.25); }
+
+        .login-btn {
+          width: 100%;
+          background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+          color: white;
+          font-weight: 700;
+          font-size: 15px;
+          padding: 14px 20px;
+          border-radius: 12px;
+          border: none;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+          letter-spacing: 0.02em;
+          margin-top: 4px;
+        }
+        .login-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(99,102,241,0.5); }
+        .login-btn:active { transform: translateY(0); }
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .error-box {
+          background: rgba(239,68,68,0.12);
+          border: 1px solid rgba(239,68,68,0.3);
+          border-radius: 10px;
+          padding: 12px 14px;
+          margin-bottom: 16px;
+          color: #fca5a5;
+          font-size: 13px;
+          line-height: 1.5;
+          text-align: center;
+        }
+        .success-box {
+          background: rgba(34,197,94,0.12);
+          border: 1px solid rgba(34,197,94,0.3);
+          border-radius: 10px;
+          padding: 12px 14px;
+          margin-bottom: 16px;
+          color: #86efac;
+          font-size: 13px;
+          text-align: center;
+        }
+
+        .register-prompt {
+          text-align: center;
+          margin-top: 28px;
+          color: rgba(255,255,255,0.4);
+          font-size: 14px;
+        }
+        .register-link {
+          color: #818cf8;
+          font-weight: 700;
+          cursor: pointer;
+          background: none;
+          border: none;
+          font-size: 14px;
+          text-decoration: none;
+          transition: color 0.2s;
+          padding: 0;
+        }
+        .register-link:hover { color: #a5b4fc; text-decoration: underline; }
+
+        .forgot-link {
+          color: rgba(255,255,255,0.35);
+          font-size: 12px;
+          cursor: pointer;
+          background: none;
+          border: none;
+          padding: 0;
+          transition: color 0.2s;
+        }
+        .forgot-link:hover { color: rgba(255,255,255,0.6); text-decoration: underline; }
+
+        .spinner {
+          width: 18px;
+          height: 18px;
+          border: 2px solid rgba(255,255,255,0.3);
+          border-top-color: #fff;
+          border-radius: 50%;
+          animation: spin 0.7s linear infinite;
+          display: inline-block;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
+
+      <div className="auth-card">
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <img
+            src="/icons/laddea.png"
+            alt="Laadhuu"
+            style={{ height: '64px', width: 'auto', marginBottom: '16px' }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+          <h1 style={{
+            color: '#fff',
+            fontSize: '26px',
+            fontWeight: 800,
+            margin: 0,
+            letterSpacing: '-0.02em',
+          }}>
+            Ku soo dhawow 🎮
+          </h1>
+          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', marginTop: '6px' }}>
+            Sign in to play Somaali Luudo
+          </p>
+        </div>
+
+        {/* Google Button */}
+        <button
+          className="google-btn"
+          onClick={handleGoogleLogin}
+          disabled={googleLoading || loading}
+          id="google-login-btn"
+        >
+          {googleLoading ? (
+            <span className="spinner" style={{ borderColor: 'rgba(0,0,0,0.2)', borderTopColor: '#4285f4' }} />
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+          )}
+          {googleLoading ? 'Redirecting to Google...' : 'Continue with Google'}
+        </button>
+
+        {/* Divider */}
+        <div className="divider">or sign in with phone</div>
+
+        {/* Error / Success */}
+        {displayError && <div className="error-box">⚠️ {displayError}</div>}
+        {success && <div className="success-box">✅ {success}</div>}
+
+        {/* Login Form */}
+        <form onSubmit={handleSubmit}>
+          <div className="input-group">
+            <label className="input-label">Phone Number</label>
+            <div className="phone-row">
+              <div className="phone-prefix">
+                <span>🇸🇴</span>
+                <span>+252</span>
               </div>
               <input
                 type="tel"
                 inputMode="numeric"
+                className="auth-input"
+                placeholder="61 234 5678"
                 value={phone}
                 onChange={handlePhoneChange}
-                className="flex-1 bg-gray-50 px-3 py-3 text-gray-900 outline-none"
-                placeholder="Enter phone number"
-                required
                 disabled={loading}
+                required
+                id="login-phone"
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-gray-600 text-sm font-bold mb-2">Password</label>
+          <div className="input-group">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <label className="input-label" style={{ margin: 0 }}>Password</label>
+              {onSwitchToResetPassword && (
+                <button type="button" className="forgot-link" onClick={onSwitchToResetPassword}>
+                  Forgot password?
+                </button>
+              )}
+            </div>
             <input
               type="password"
+              className="password-input"
+              placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 text-gray-900 focus:ring-2 focus:ring-cyan-500 outline-none"
-              placeholder="Enter your password"
-              required
               disabled={loading}
+              required
+              id="login-password"
             />
           </div>
 
-          {onSwitchToResetPassword && (
-            <div className="text-right">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onSwitchToResetPassword();
-                }}
-                className="text-sm text-gray-600 hover:text-cyan-600 underline"
-              >
-                Forgot Password?
-              </button>
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-red-100 border border-red-300 rounded-lg p-3">
-              <p className="text-red-700 text-sm text-center">{error}</p>
-              {error.includes('Cannot connect to server') && (
-                <p className="text-red-600 text-xs text-center mt-2">
-                  💡 Make sure the backend server is running on port 5000
-                </p>
-              )}
-            </div>
-          )}
-
-          {success && (
-            <div className="bg-green-100 border border-green-300 rounded-lg p-3">
-              <p className="text-green-700 text-sm text-center">{success}</p>
-            </div>
-          )}
-
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg transition-transform transform active:scale-95"
+            className="login-btn"
+            disabled={loading || googleLoading}
+            id="login-submit-btn"
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? (
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <span className="spinner" />
+                Logging in...
+              </span>
+            ) : 'Login →'}
           </button>
         </form>
 
-        <div className="mt-6 text-center">
+        {/* Register prompt */}
+        <div className="register-prompt">
+          Ma xidhi akoon hore?{' '}
           <button
+            type="button"
+            className="register-link"
             onClick={onSwitchToRegister}
-            className="text-gray-600 hover:text-cyan-600 text-sm underline"
+            id="switch-to-register-btn"
           >
-            Akoon Cusub
+            Register Now
           </button>
-        </div>
-
-        <div className="mt-4 text-center">
         </div>
       </div>
     </div>
@@ -155,4 +396,3 @@ const Login: React.FC<LoginProps> = ({ onSuccess, onSwitchToRegister, onSwitchTo
 };
 
 export default Login;
-

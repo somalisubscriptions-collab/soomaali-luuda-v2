@@ -746,6 +746,148 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
   }
 });
 
+// --- GOOGLE OAUTH ROUTES ---
+// Step 1: Redirect user to Google login
+app.get('/api/auth/google', (req, res) => {
+  const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+  const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI ||
+    (process.env.NODE_ENV === 'production'
+      ? 'https://api.laadhuu.online/api/auth/google/callback'
+      : 'http://localhost:5000/api/auth/google/callback');
+
+  if (!GOOGLE_CLIENT_ID) {
+    return res.status(500).json({ error: 'Google OAuth not configured. Add GOOGLE_CLIENT_ID to backend .env' });
+  }
+
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: REDIRECT_URI,
+    response_type: 'code',
+    scope: 'openid email profile',
+    access_type: 'offline',
+    prompt: 'select_account',
+  });
+
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+});
+
+// Step 2: Google redirects back here with a code
+app.get('/api/auth/google/callback', async (req, res) => {
+  const { code, error } = req.query;
+  const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+  const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+  const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI ||
+    (process.env.NODE_ENV === 'production'
+      ? 'https://api.laadhuu.online/api/auth/google/callback'
+      : 'http://localhost:5000/api/auth/google/callback');
+
+  // Determine where to send the user after login
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+  if (error) {
+    console.error('[Google OAuth] Error from Google:', error);
+    return res.redirect(`${FRONTEND_URL}?auth_error=google_denied`);
+  }
+
+  if (!code) {
+    return res.redirect(`${FRONTEND_URL}?auth_error=no_code`);
+  }
+
+  try {
+    // Exchange code for tokens
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        redirect_uri: REDIRECT_URI,
+        grant_type: 'authorization_code',
+      }).toString(),
+    });
+
+    const tokenData = await tokenResponse.json();
+
+    if (!tokenData.access_token) {
+      console.error('[Google OAuth] Token exchange failed:', tokenData);
+      return res.redirect(`${FRONTEND_URL}?auth_error=token_failed`);
+    }
+
+    // Get user info from Google
+    const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const googleUser = await userInfoResponse.json();
+
+    console.log('[Google OAuth] User info:', { sub: googleUser.sub, email: googleUser.email, name: googleUser.name });
+
+    if (!googleUser.sub) {
+      return res.redirect(`${FRONTEND_URL}?auth_error=no_profile`);
+    }
+
+    // Find or create user in MongoDB
+    let user = await User.findOne({ googleId: googleUser.sub });
+
+    if (!user && googleUser.email) {
+      // Try to find by email (user may have registered with phone first)
+      user = await User.findOne({ email: googleUser.email });
+      if (user) {
+        // Link Google account to existing user
+        user.googleId = googleUser.sub;
+        if (!user.avatar && googleUser.picture) user.avatar = googleUser.picture;
+        await user.save();
+        console.log(`[Google OAuth] Linked Google account to existing user: ${user.username}`);
+      }
+    }
+
+    if (!user) {
+      // Create a brand new user from Google profile
+      const userId = 'g' + Date.now().toString().slice(-8);
+      // Make username unique by appending random suffix if needed
+      let baseUsername = (googleUser.name || googleUser.email.split('@')[0]).replace(/\s+/g, '_').slice(0, 20);
+      let username = baseUsername;
+      let tries = 0;
+      while (await User.findOne({ username })) {
+        username = `${baseUsername}_${Math.floor(Math.random() * 9000 + 1000)}`;
+        if (++tries > 10) { username = userId; break; }
+      }
+
+      const { generateUniqueReferralCode } = require('./utils/referralUtils');
+      const referralCode = await generateUniqueReferralCode();
+
+      user = new User({
+        _id: userId,
+        username,
+        email: googleUser.email || null,
+        googleId: googleUser.sub,
+        avatar: googleUser.picture || null,
+        balance: 0,
+        role: 'USER',
+        status: 'Active',
+        referralCode,
+        stats: { gamesPlayed: 0, wins: 0 },
+      });
+      await user.save();
+      console.log(`[Google OAuth] Created new user: ${username} (${userId})`);
+    }
+
+    // Issue our own JWT
+    const token = jwt.sign(
+      { userId: user._id, username: user.username, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '365d' }
+    );
+
+    // Redirect to frontend with token in URL
+    res.redirect(`${FRONTEND_URL}?google_token=${token}`);
+  } catch (err) {
+    console.error('[Google OAuth] Callback error:', err);
+    res.redirect(`${FRONTEND_URL}?auth_error=server_error`);
+  }
+});
+// --- END GOOGLE OAUTH ROUTES ---
+
 // POST: Direct User Gem Purchase from Balance
 app.post('/api/buy-gems', authenticateToken, async (req, res) => {
   try {
