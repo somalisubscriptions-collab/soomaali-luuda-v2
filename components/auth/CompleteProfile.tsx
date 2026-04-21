@@ -267,7 +267,32 @@ const CompleteProfile: React.FC<CompleteProfileProps> = ({ onSuccess }) => {
       <div className="auth-card">
         <div className="auth-content">
           <h1 className="title">Complete Profile</h1>
-          <p className="subtitle">Please enter your Zaad / EVC Plus number to deposit and play.</p>
+          <p className="subtitle" style={{ marginBottom: '40px' }}>
+            <span style={{ 
+              display: 'block', 
+              fontSize: '15px', 
+              fontWeight: '500', 
+              marginBottom: '14px',
+              color: '#e2e8f0',
+              lineHeight: '1.6'
+            }}>
+              Fadlan halkaan si taxadar leh u gali numberka hadhow lacagta lagugu soo diri doono,
+            </span>
+            <span style={{
+              display: 'inline-block',
+              padding: '8px 16px',
+              background: 'linear-gradient(135deg, rgba(142, 68, 173, 0.15), rgba(41, 128, 185, 0.15))',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '20px',
+              color: '#b8b8d4',
+              fontSize: '12px',
+              fontWeight: '700',
+              letterSpacing: '1px',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+            }}>
+              <span style={{color: '#2ecc71'}}>EVC</span> • <span style={{color: '#f1c40f'}}>EDAHAB</span> • <span style={{color: '#e67e22'}}>GOLIS</span> • <span style={{color: '#3498db'}}>TELESOM</span> • <span style={{color: '#e74c3c'}}>SOMTEL</span>
+            </span>
+          </p>
 
           {error && (
             <div className="error-message">
