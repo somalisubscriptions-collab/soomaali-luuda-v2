@@ -75,7 +75,7 @@ const AppContent: React.FC = () => {
 
   const { gameStarted, players, currentPlayerIndex, turnState, winners, timer } = ludoState;
 
-  const { user, isAuthenticated, loading: authLoading, refreshUser, loginWithGoogleToken } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, refreshUser, loginWithGoogleToken, logout } = useAuth();
   const [view, setView] = useState<View>('login');
   const [googleAuthError, setGoogleAuthError] = useState<string | null>(null);
   const [showSuperAdminOverlay, setShowSuperAdminOverlay] = useState(false);
@@ -502,7 +502,7 @@ const AppContent: React.FC = () => {
 
   // Force users without a phone number to complete their profile first
   if (user && !user.phone) {
-    return <CompleteProfile onSuccess={() => setView('setup')} />;
+    return <CompleteProfile onSuccess={() => setView('setup')} onSkip={logout} />;
   }
 
   // Authenticated: Show main game interface

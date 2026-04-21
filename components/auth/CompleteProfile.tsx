@@ -3,9 +3,10 @@ import { useAuth } from '../../context/AuthContext';
 
 interface CompleteProfileProps {
   onSuccess: () => void;
+  onSkip?: () => void;
 }
 
-const CompleteProfile: React.FC<CompleteProfileProps> = ({ onSuccess }) => {
+const CompleteProfile: React.FC<CompleteProfileProps> = ({ onSuccess, onSkip }) => {
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -265,6 +266,41 @@ const CompleteProfile: React.FC<CompleteProfileProps> = ({ onSuccess }) => {
       `}</style>
 
       <div className="auth-card">
+        {onSkip && (
+          <button
+            onClick={onSkip}
+            title="Go back"
+            style={{
+              position: 'absolute',
+              top: '16px',
+              right: '16px',
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: '50%',
+              width: '36px',
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'rgba(255,255,255,0.7)',
+              fontSize: '18px',
+              lineHeight: 1,
+              zIndex: 10,
+              transition: 'background 0.2s, color 0.2s',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.18)';
+              (e.currentTarget as HTMLButtonElement).style.color = '#fff';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)';
+              (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.7)';
+            }}
+          >
+            ✕
+          </button>
+        )}
         <div className="auth-content">
           <h1 className="title">Complete Profile</h1>
           <p className="subtitle" style={{ marginBottom: '40px' }}>
