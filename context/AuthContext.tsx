@@ -12,6 +12,7 @@ interface AuthContextType {
   logout: () => void;
   requestPasswordReset: (phoneOrUsername: string) => Promise<void>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
+  updatePhone: (phone: string) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -106,6 +107,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const updatePhone = async (phone: string) => {
+    await authAPI.updatePhone(phone);
+    await refreshUser(); // Fetch the new user state including phone
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem('ludo_user');
@@ -129,6 +135,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         login,
         register,
         loginWithGoogleToken,
+        updatePhone,
         logout,
         requestPasswordReset,
         resetPassword,

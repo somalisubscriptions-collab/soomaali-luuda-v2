@@ -1,4 +1,5 @@
 
+require('dotenv').config(); // Load .env variables FIRST
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -746,11 +747,43 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
   }
 });
 
+// Update Phone Number for Google users
+app.put('/api/auth/update-phone', authenticateToken, async (req, res) => {
+  try {
+    const { phone } = req.body;
+    
+    if (!phone || phone.length < 7) {
+      return res.status(400).json({ error: 'Fadlan geli number sax ah (Must be valid)' });
+    }
+
+    const formattedPhone = phone.startsWith('+252') ? phone : `+252${phone.replace(/^(\+252|252|0)/, '')}`;
+
+    // Check if phone already in use
+    const existingUser = await User.findOne({ phone: formattedPhone });
+    if (existingUser && existingUser._id.toString() !== req.user.userId) {
+      return res.status(400).json({ error: 'Numberkaan horay ayaa loo diiwaangeliyay' });
+    }
+
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    user.phone = formattedPhone;
+    await user.save();
+
+    res.json({ message: 'Phone number updated successfully', phone: user.phone });
+  } catch (error) {
+    console.error('[Update Phone Error]:', error);
+    res.status(500).json({ error: 'Failed to update phone number' });
+  }
+});
+
 // --- GOOGLE OAUTH ROUTES ---
 // Step 1: Redirect user to Google login
 app.get('/api/auth/google', (req, res) => {
-  const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-  const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI ||
+  const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID?.trim();
+  const REDIRECT_URI = (process.env.GOOGLE_REDIRECT_URI?.trim()) ||
     (process.env.NODE_ENV === 'production'
       ? 'https://api.laadhuu.online/api/auth/google/callback'
       : 'http://localhost:5000/api/auth/google/callback');
@@ -774,9 +807,9 @@ app.get('/api/auth/google', (req, res) => {
 // Step 2: Google redirects back here with a code
 app.get('/api/auth/google/callback', async (req, res) => {
   const { code, error } = req.query;
-  const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-  const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-  const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI ||
+  const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID?.trim();
+  const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET?.trim();
+  const REDIRECT_URI = (process.env.GOOGLE_REDIRECT_URI?.trim()) ||
     (process.env.NODE_ENV === 'production'
       ? 'https://api.laadhuu.online/api/auth/google/callback'
       : 'http://localhost:5000/api/auth/google/callback');

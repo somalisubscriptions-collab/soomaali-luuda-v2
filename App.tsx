@@ -15,6 +15,7 @@ import { useTicTacToeLogic } from './hooks/useTicTacToeLogic'; // NEW
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import ResetPassword from './components/auth/ResetPassword';
+import CompleteProfile from './components/auth/CompleteProfile';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import type { Player, PlayerColor, MultiplayerGame, GameType } from './types'; // Updated types
 import { debugService } from './services/debugService';
@@ -495,9 +496,19 @@ const AppContent: React.FC = () => {
     return <Login onSuccess={handleLoginSuccess} onSwitchToRegister={handleSwitchToRegister} />;
   }
 
+  // -------------------------
+  // AUTHENTICATED RENDER LOOP
+  // -------------------------
+
+  // Force users without a phone number to complete their profile first
+  if (user && !user.phone) {
+    return <CompleteProfile onSuccess={() => setView('setup')} />;
+  }
+
   // Authenticated: Show main game interface
   return (
     <>
+      <audio id="click-sound" src="/sounds/click.mp3" preload="auto"></audio>
       {renderSuperAdminOverlay()}
       {showMiniAdminDashboard && (
         <MiniAdminDashboard onClose={() => setShowMiniAdminDashboard(false)} />

@@ -185,5 +185,30 @@ export const authAPI = {
       throw new Error(errorMessage);
     }
   },
+
+  async updatePhone(phone: string): Promise<void> {
+    const token = localStorage.getItem('ludo_token');
+    const url = `${getAuthUrl()}/auth/update-phone`;
+
+    if (!token) {
+      throw new Error('No authentication token');
+    }
+
+    const options = {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ phone }),
+    };
+
+    try {
+      await instrumentedFetch(url, options);
+    } catch (error: any) {
+      const errorMessage = error.responseData?.error || error.responseData?.message || 'Failed to update phone number';
+      throw new Error(errorMessage);
+    }
+  },
 };
 
