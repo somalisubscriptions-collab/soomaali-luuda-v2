@@ -53,7 +53,7 @@ Run these commands in your local terminal:
 ```cmd
 cd "c:\Users\ILYAAS ABDIRAHMAN\Downloads\ludo-master (1)"
 git add .
-git commit -m "Fix hardcoded localhost URLs in referral system"
+git commit -m "Deploy changes"
 git push origin main
 ```
 
