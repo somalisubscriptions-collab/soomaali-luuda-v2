@@ -4302,7 +4302,7 @@ const runAutoTurn = async (gameId) => {
         // Pass turn logic
         const game = await Game.findOne({ gameId });
         if (game && game.turnState === 'MOVING' && game.legalMoves.length === 0) {
-          const nextPlayerIndex = gameEngine.getNextPlayerIndex(game, game.currentPlayerIndex, false);
+          const nextPlayerIndex = gameEngine.getNextPlayerIndex(game, game.currentPlayerIndex, game.diceValue === 6);
           game.currentPlayerIndex = nextPlayerIndex;
           game.diceValue = null;
           game.turnState = 'ROLLING';
@@ -4319,7 +4319,7 @@ const runAutoTurn = async (gameId) => {
 
     const game = result.state;
     if (game.turnState === 'MOVING') {
-      scheduleAutoTurn(gameId, AUTO_TURN_DELAYS.AI_QUICK_MOVE);
+      scheduleAutoTurn(gameId, AUTO_TURN_DELAYS.AI_MOVE);
     } else if (game.turnState === 'ROLLING') {
       const updatedGameRecord = await Game.findOne({ gameId });
       if (updatedGameRecord) {
@@ -4639,7 +4639,7 @@ io.on('connection', (socket) => {
           const game = await Game.findOne({ gameId });
           if (game && game.turnState === 'MOVING' && game.legalMoves.length === 0) {
             console.log(`🎲 Auto-pass condition met for game ${gameId}. Passing turn.`);
-            const nextPlayerIndex = gameEngine.getNextPlayerIndex(game, game.currentPlayerIndex, false);
+            const nextPlayerIndex = gameEngine.getNextPlayerIndex(game, game.currentPlayerIndex, game.diceValue === 6);
             game.currentPlayerIndex = nextPlayerIndex;
             game.diceValue = null;
             game.turnState = 'ROLLING';
@@ -4649,7 +4649,7 @@ io.on('connection', (socket) => {
             await game.save();
             io.to(gameId).emit('GAME_STATE_UPDATE', { state: prepareGameStateForEmit(game) });
             const nextPlayer = game.players[nextPlayerIndex];
-            if (nextPlayer && (nextPlayer.isAI || nextPlayer.isDisconnected)) scheduleAutoTurn(gameId, 1500);
+            if (nextPlayer && (nextPlayer.isAI || nextPlayer.isDisconnected)) scheduleAutoTurn(gameId, AUTO_TURN_DELAYS.AI_ROLL);
             else if (nextPlayer) scheduleHumanPlayerAutoRoll(gameId);
           } else {
             console.log(`⚠️ Auto-pass aborted for game ${gameId}. State mismatch: Turn=${game?.turnState}, Moves=${game?.legalMoves?.length}`);
@@ -4671,7 +4671,14 @@ io.on('connection', (socket) => {
 
     } else {
       console.error(`[SOCKET] Error in roll_dice for game ${gameId}: ${result.message || 'Failed to roll dice'}`);
-      socket.emit('ERROR', { message: result.message || 'Failed to roll dice' });
+      
+      const isHarmless = result.message === 'Wait for animation' || 
+                         result.message === 'Not rolling state' || 
+                         result.message === 'Not in ROLLING state';
+
+      if (!isHarmless) {
+        socket.emit('ERROR', { message: result.message || 'Failed to roll dice' });
+      }
 
       // CRITICAL FIX: Restart timer if roll failed but game is still active
       // This prevents the game from getting stuck if a user request fails validation
@@ -4685,7 +4692,7 @@ io.on('connection', (socket) => {
         }
       }
 
-      if (result.message === 'Wait for animation' || result.message === 'Not rolling state') {
+      if (isHarmless) {
         // If we have gameCheck already, use it
         if (gameCheck) {
           console.log(`[SOCKET] Emitting GAME_STATE_UPDATE due to specific error for game ${gameId}`);
@@ -4961,7 +4968,7 @@ io.on('connection', (socket) => {
               const result = await gameEngine.handleDisconnect(gameId, socket.id);
               if (result) {
                 io.to(gameId).emit('GAME_STATE_UPDATE', { state: prepareGameStateForEmit(result.state) });
-                if (result.isCurrentTurn) scheduleAutoTurn(gameId, 1000);
+                if (result.isCurrentTurn) scheduleAutoTurn(gameId, AUTO_TURN_DELAYS.AI_ROLL);
               }
 
             }, 15000); // 15s to match standard
@@ -4981,7 +4988,7 @@ io.on('connection', (socket) => {
             console.log(`🤖 Game ${gameId} - No active humans. Bots playing in SLOW MODE.`);
             if (result.isCurrentTurn) scheduleAutoTurn(gameId, 8000);
           } else {
-            if (result.isCurrentTurn) scheduleAutoTurn(gameId, 1000);
+            if (result.isCurrentTurn) scheduleAutoTurn(gameId, AUTO_TURN_DELAYS.AI_ROLL);
           }
         }
 
@@ -5296,7 +5303,7 @@ io.on('connection', (socket) => {
               const result = await gameEngine.handleDisconnect(gameId, socket.id);
               if (result) {
                 io.to(gameId).emit('GAME_STATE_UPDATE', { state: prepareGameStateForEmit(result.state) });
-                if (result.isCurrentTurn) scheduleAutoTurn(gameId, 1000);
+                if (result.isCurrentTurn) scheduleAutoTurn(gameId, AUTO_TURN_DELAYS.AI_ROLL);
               }
               console.log(`🤖 Disconnect timeout reached for ${player.color} in ${gameId}. Bot taking over.`);
             }, 15000);
@@ -5312,7 +5319,7 @@ io.on('connection', (socket) => {
         const result = await gameEngine.handleDisconnect(gameId, socket.id);
         if (result) {
           io.to(gameId).emit('GAME_STATE_UPDATE', { state: prepareGameStateForEmit(result.state) });
-          if (result.isCurrentTurn) scheduleAutoTurn(gameId, 1000);
+          if (result.isCurrentTurn) scheduleAutoTurn(gameId, AUTO_TURN_DELAYS.AI_ROLL);
         }
       } catch (err) {
         console.error('Error handling disconnect:', err);
@@ -5432,7 +5439,7 @@ const restoreTimersForActiveGames = async () => {
 
       // If it was an AI turn, schedule AI turn
       if (currentPlayer.isAI) {
-        scheduleAutoTurn(game.gameId, 1000);
+        scheduleAutoTurn(game.gameId, AUTO_TURN_DELAYS.AI_ROLL);
         continue;
       }
 
@@ -5821,7 +5828,7 @@ setInterval(async () => {
               const result = await gameEngine.handleDisconnect(gameId, socket.id);
               if (result) {
                 io.to(gameId).emit('GAME_STATE_UPDATE', { state: result.state });
-                if (result.isCurrentTurn) scheduleAutoTurn(gameId, 1000);
+                if (result.isCurrentTurn) scheduleAutoTurn(gameId, AUTO_TURN_DELAYS.AI_ROLL);
               }
             }, 15000);
             pendingDisconnects.set(userId, { timeoutId: disconnectTimeout, gameId });
@@ -5832,7 +5839,7 @@ setInterval(async () => {
         const result = await gameEngine.handleDisconnect(gameId, socket.id);
         if (result) {
           io.to(gameId).emit('GAME_STATE_UPDATE', { state: result.state });
-          if (result.isCurrentTurn) scheduleAutoTurn(gameId, 1000);
+          if (result.isCurrentTurn) scheduleAutoTurn(gameId, AUTO_TURN_DELAYS.AI_ROLL);
         }
       }
     });
