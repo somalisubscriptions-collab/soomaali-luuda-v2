@@ -721,12 +721,13 @@ const calculateLegalMoves = (gameState, diceValue) => {
                 // Normal move within HOME_PATH
                 moves.push({ tokenId: token.id, finalPosition: { type: 'HOME_PATH', index: newHomeIndex } });
                 console.log(`📋 Token ${token.id} can move within HOME_PATH from ${currentPos.index} to ${newHomeIndex}`);
-            } else if (newHomeIndex >= HOME_PATH_LENGTH) {
-                // FIX: Any roll that reaches or passes HOME lands the token in HOME.
-                // Previously only exact rolls worked, causing 6 to always overshoot
-                // and waste turns when all tokens are in the home stretch.
+            } else if (newHomeIndex === HOME_PATH_LENGTH) {
+                // EXACT ROLL REQUIRED: Only allow HOME entry if exact roll
                 moves.push({ tokenId: token.id, finalPosition: { type: 'HOME' } });
-                console.log(`📋 Token ${token.id} enters HOME (roll=${diceValue}, pos=${currentPos.index}, total=${newHomeIndex} >= ${HOME_PATH_LENGTH})`);
+                console.log(`📋 Token ${token.id} can enter HOME with exact roll (from ${currentPos.index} + ${diceValue} = ${newHomeIndex})`);
+            } else {
+                // Overshooting: If roll is too high, no move is possible
+                console.log(`📋 Token ${token.id} CANNOT move: overshoot HOME (${currentPos.index} + ${diceValue} = ${newHomeIndex} > ${HOME_PATH_LENGTH})`);
             }
         }
     }
