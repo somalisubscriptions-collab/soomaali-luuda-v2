@@ -1101,10 +1101,8 @@ exports.handleAutoMove = async (gameId) => {
         // This case should ideally be handled by auto-passing the turn.
         // But if we get here, we pass the turn.
         console.log(`🤖 Auto-move called with no legal moves. Passing turn.`);
-        // ⚠️ FIX: When there are NO legal moves, rolling a 6 should NOT grant an extra turn.
-        // Previously: `grantExtraTurn = game.diceValue === 6` would freeze the game for bots.
-        // This now matches the behavior of handlePassTurn (line 1176: grantExtraTurn = false).
-        const grantExtraTurn = false;
+        // ALWAYS grant an extra turn if the dice rolled a 6, even if there are no moves.
+        const grantExtraTurn = game.diceValue === 6;
         const nextPlayerIndex = getNextPlayerIndex(game, game.currentPlayerIndex, grantExtraTurn);
         game.currentPlayerIndex = nextPlayerIndex;
         game.turnState = 'ROLLING';
@@ -1176,8 +1174,8 @@ exports.handlePassTurn = async (gameId) => {
     // This function is called when a player has no legal moves after a roll.
     // We pass the turn to the next player.
 
-    // A roll of 6, even with no moves, should not grant an extra turn if no move can be made to capitalize on it.
-    const grantExtraTurn = false;
+    // A roll of 6 should ALWAYS grant an extra turn, even if no move can be made.
+    const grantExtraTurn = game.diceValue === 6;
 
     const nextPlayerIndex = getNextPlayerIndex(game, game.currentPlayerIndex, grantExtraTurn);
     game.currentPlayerIndex = nextPlayerIndex;
