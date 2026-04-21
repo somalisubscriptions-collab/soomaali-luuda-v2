@@ -32,7 +32,7 @@ const CompleteProfile: React.FC<CompleteProfileProps> = ({ onSuccess }) => {
       const fullPhoneNumber = '+252' + phone;
       await updatePhone(fullPhoneNumber);
       setSuccess('Profile completed successfully! Redirecting...');
-      setTimeout(() => onSuccess(), 1200);
+      setTimeout(() => onSuccess(), 300);
     } catch (err: any) {
       setError(err.message || 'Failed to update phone number. Number might be in use.');
       setLoading(false);

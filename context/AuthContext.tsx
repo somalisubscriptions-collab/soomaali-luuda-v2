@@ -109,7 +109,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const updatePhone = async (phone: string) => {
     await authAPI.updatePhone(phone);
-    await refreshUser(); // Fetch the new user state including phone
+    // Update local user state DIRECTLY — no extra round-trip API call
+    setUser(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, phone };
+      localStorage.setItem('ludo_user', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const logout = () => {
