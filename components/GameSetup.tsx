@@ -87,8 +87,7 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame, onEnterLobby, onRejo
   const [showRejoinBanner, setShowRejoinBanner] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
-  const [showGemStoreModal, setShowGemStoreModal] = useState(false);
-  const [confirmGemPurchase, setConfirmGemPurchase] = useState<{show: boolean, price: number, gems: number}>({show: false, price: 0, gems: 0});
+  const [showDepositModal, setShowDepositModal] = useState(false);
 
   const [checkingActiveGame, setCheckingActiveGame] = useState(true);
 
@@ -653,16 +652,16 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame, onEnterLobby, onRejo
             </button>
           )}
 
-          {/* PREMIUM GEM STORE BUTTON */}
+          {/* DEPOSIT / WITHDRAWAL BUTTON */}
           <button
-            onClick={() => setShowGemStoreModal(true)}
-            className="w-full flex items-center justify-center gap-4 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-bold text-lg py-4 rounded-xl shadow-xl transition-all transform hover:scale-105 border-2 border-pink-400/40 relative overflow-hidden group mt-4"
+            onClick={() => setShowDepositModal(true)}
+            className="w-full flex items-center justify-center gap-4 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold text-lg py-4 rounded-xl shadow-xl transition-all transform hover:scale-105 border-2 border-emerald-400/40 relative overflow-hidden group mt-4"
           >
             <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <Gem className="w-8 h-8 group-hover:scale-110 transition-transform duration-300 drop-shadow-md text-pink-300" />
-            <div className="flex flex-col items-start leading-none gap-1">
-              <span className="text-xl font-bold tracking-wide">Buy Undo Gems</span>
-              <span className="text-xs text-pink-200/80 uppercase tracking-widest font-black">Premium Store</span>
+            <span className="text-3xl group-hover:scale-110 transition-transform duration-300 drop-shadow-md">💰</span>
+            <div className="flex flex-col items-start leading-tight gap-0.5">
+              <span className="text-lg font-bold tracking-wide">Lacag dhigasho & labixid</span>
+              <span className="text-[10px] text-emerald-200/80 uppercase tracking-widest font-black">Deposit & Withdrawal</span>
             </div>
           </button>
 
@@ -745,115 +744,49 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame, onEnterLobby, onRejo
         </div>
       )}
 
-      {/* Premium Gem Store Modal */}
-      {showGemStoreModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in zoom-in duration-200" onClick={() => setShowGemStoreModal(false)}>
-          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl max-w-sm w-full p-6 shadow-[0_0_40px_rgba(236,72,153,0.3)] border border-pink-500/30 relative" onClick={(e) => e.stopPropagation()}>
+      {/* Deposit/Withdrawal WhatsApp Modal */}
+      {showDepositModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in zoom-in duration-200" onClick={() => setShowDepositModal(false)}>
+          <div className="bg-gradient-to-br from-green-900 via-emerald-800 to-teal-900 rounded-3xl max-w-sm w-full p-6 shadow-[0_0_40px_rgba(16,185,129,0.3)] border border-green-500/30 relative" onClick={(e) => e.stopPropagation()}>
             <button 
-              onClick={() => setShowGemStoreModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
+              onClick={() => setShowDepositModal(false)}
+              className="absolute top-4 right-4 text-emerald-200 hover:text-white transition-colors"
             >
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
             <div className="text-center mb-6 mt-2">
-              <div className="bg-gradient-to-br from-pink-500/20 to-purple-500/20 rounded-2xl w-20 h-20 mx-auto mb-4 flex items-center justify-center border border-pink-500/30 shadow-[0_0_20px_rgba(236,72,153,0.2)] transform -rotate-12 transition-transform hover:rotate-0 duration-300">
-                 <Gem className="w-10 h-10 text-pink-400 drop-shadow-[0_0_8px_rgba(236,72,153,0.8)]" />
+              <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-2xl w-20 h-20 mx-auto mb-4 flex items-center justify-center border border-green-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)] transform transition-transform hover:scale-105 duration-300">
+                 <span className="text-4xl drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]">💰</span>
               </div>
-              <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400 tracking-tight">Undo Gems</h2>
-              <p className="text-slate-300 text-sm mt-3 font-medium px-4">Gems save your match from bad rolls. Use them wisely!</p>
-              <div className="mt-4 inline-block bg-slate-950/50 rounded-full px-4 py-1.5 border border-slate-700/50">
-                <span className="text-slate-400 text-xs uppercase tracking-wider font-bold mr-2">Wallet</span>
-                <span className="text-green-400 font-mono font-bold">${user?.balance?.toFixed(2) || '0.00'}</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-4 mt-2">
-              {/* Premium Value Package */}
-              <button 
-                onClick={() => handleBuyGems(1.00, 150)}
-                className="relative bg-gradient-to-r from-pink-600/90 to-purple-700/90 border-2 border-pink-400/50 hover:border-pink-300 rounded-2xl p-4 flex items-center justify-between shadow-[0_0_20px_rgba(236,72,153,0.4)] transition-all hover:shadow-[0_0_30px_rgba(236,72,153,0.6)] hover:-translate-y-1 group overflow-hidden"
-              >
-                <div className="absolute top-0 right-0 bg-gradient-to-l from-amber-400 to-orange-500 text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-bl-xl text-white z-10 shadow-lg animate-pulse" style={{ animationDuration: '2s' }}>
-                  Best Value
-                </div>
-                <div className="absolute inset-0 bg-[url('/icons/noise.png')] opacity-20 mix-blend-overlay"></div>
-                
-                <div className="flex items-center gap-4 z-10">
-                  <div className="flex -space-x-3">
-                    <Gem className="w-8 h-8 text-pink-300 drop-shadow-md transform -rotate-12" />
-                    <Gem className="w-10 h-10 text-pink-100 drop-shadow-lg z-10 scale-110 transition-transform group-hover:rotate-12 duration-300" />
-                    <Gem className="w-8 h-8 text-purple-300 drop-shadow-md transform rotate-12" />
-                  </div>
-                  <div className="flex flex-col items-start gap-1">
-                    <span className="text-white font-black text-3xl leading-none drop-shadow-md">150</span>
-                    <span className="text-pink-200 text-xs uppercase tracking-widest font-bold">Gems</span>
-                  </div>
-                </div>
-                <span className="bg-black/40 text-white font-mono font-bold text-lg px-4 py-1.5 rounded-xl border border-white/20 z-10 backdrop-blur-sm">$1.00</span>
-              </button>
-
-              {/* Basic Package */}
-              <button 
-                onClick={() => handleBuyGems(0.25, 25)}
-                className="relative bg-slate-800 border border-slate-600 hover:border-pink-500/50 rounded-2xl p-4 flex items-center justify-between shadow-lg transition-all hover:-translate-y-1 group overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                
-                <div className="flex items-center gap-4 z-10 pl-2">
-                  <Gem className="w-8 h-8 text-slate-300 group-hover:text-pink-400 group-hover:scale-110 transition-all duration-300" />
-                  <div className="flex flex-col items-start gap-1 border-l border-slate-700 pl-4 ml-1">
-                    <span className="text-slate-200 font-bold text-2xl leading-none">25</span>
-                    <span className="text-slate-400 text-[10px] uppercase tracking-widest font-bold">Gems</span>
-                  </div>
-                </div>
-                <span className="bg-slate-900 text-slate-300 font-mono font-medium text-base px-4 py-1.5 rounded-xl border border-slate-700/80 z-10">$0.25</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Gem Purchase Confirmation Modal */}
-      {confirmGemPurchase.show && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[70] p-4 animate-in fade-in zoom-in-95 duration-200" onClick={() => setConfirmGemPurchase({ show: false, price: 0, gems: 0 })}>
-          <div className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-700 relative overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-pink-500 to-purple-500"></div>
-            
-            <div className="flex flex-col items-center text-center mt-4">
-              <div className="bg-gradient-to-br from-pink-500/20 to-purple-500/20 rounded-full p-5 mb-5 relative shadow-[0_0_20px_rgba(236,72,153,0.15)]">
-                <div className="absolute inset-0 bg-pink-400/20 animate-ping rounded-full" style={{ animationDuration: '2s' }}></div>
-                <Gem className="w-10 h-10 text-pink-400 relative z-10 drop-shadow-md" />
-              </div>
-              
-              <h3 className="text-2xl font-black text-white mb-2 tracking-tight">Confirm Purchase</h3>
-              
-              <div className="bg-slate-950/50 rounded-xl p-4 w-full mb-6 border border-slate-700/50">
-                <p className="text-slate-300 text-sm leading-relaxed">
-                  Are you sure you want to buy <br/>
-                  <span className="font-black text-pink-400 text-xl">{confirmGemPurchase.gems} Undo Gems</span> <br/>
-                  for <span className="font-mono text-green-400 font-bold text-xl">${confirmGemPurchase.price.toFixed(2)}</span>?
+              <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-emerald-300 tracking-tight leading-tight">Lacag Dhigasho & Labixid</h2>
+              <div className="bg-slate-950/40 rounded-xl p-4 mt-6 border border-slate-700/50">
+                <p className="text-slate-200 text-sm font-medium leading-relaxed">
+                  Fadlan hadii aad dooneyso lacag labixid iyo dhigasho la xariir nambarkaan hoose.
                 </p>
               </div>
-              
-              <div className="flex w-full gap-3">
-                <button 
-                  onClick={() => setConfirmGemPurchase({ show: false, price: 0, gems: 0 })}
-                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3.5 rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={executeWhatsAppPurchase}
-                  className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-2 group transform active:scale-95"
-                >
-                  <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347M12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
-                  Yes, Buy
-                </button>
-              </div>
+            </div>
+
+            <div className="flex flex-col gap-4 mt-4">
+              <a 
+                href={`https://wa.me/252611164682?text=${encodeURIComponent(`${user?.username || ''}\n${user?.phone || ''}\n\nAsc waxaan rabaa in laii shaqeeyo`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 border-2 border-green-400/50 hover:border-green-300 rounded-2xl p-4 flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all hover:shadow-[0_0_30px_rgba(16,185,129,0.6)] hover:-translate-y-1 group overflow-hidden"
+              >
+                <svg className="w-8 h-8 text-white drop-shadow-md z-10 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                </svg>
+                <div className="flex flex-col items-start gap-0.5 z-10 w-full text-center items-center justify-center">
+                  <span className="text-white font-black text-xl leading-none drop-shadow-md">+252 61 1164682</span>
+                  <span className="text-green-200 text-[10px] uppercase tracking-widest font-bold">La xariir WhatsApp</span>
+                </div>
+              </a>
             </div>
           </div>
         </div>
       )}
+
+
 
       {/* Player Stats Modal */}
       {showStatsModal && user && (

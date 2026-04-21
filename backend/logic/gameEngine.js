@@ -718,15 +718,15 @@ const calculateLegalMoves = (gameState, diceValue) => {
         } else if (currentPos.type === 'HOME_PATH') {
             const newHomeIndex = currentPos.index + diceValue;
             if (newHomeIndex < HOME_PATH_LENGTH) {
+                // Normal move within HOME_PATH
                 moves.push({ tokenId: token.id, finalPosition: { type: 'HOME_PATH', index: newHomeIndex } });
                 console.log(`📋 Token ${token.id} can move within HOME_PATH from ${currentPos.index} to ${newHomeIndex}`);
-            } else if (newHomeIndex === HOME_PATH_LENGTH) {
-                // EXACT ROLL REQUIRED: Only allow HOME entry if exact roll
+            } else if (newHomeIndex >= HOME_PATH_LENGTH) {
+                // FIX: Any roll that reaches or passes HOME lands the token in HOME.
+                // Previously only exact rolls worked, causing 6 to always overshoot
+                // and waste turns when all tokens are in the home stretch.
                 moves.push({ tokenId: token.id, finalPosition: { type: 'HOME' } });
-                console.log(`📋 Token ${token.id} can enter HOME with exact roll (from ${currentPos.index} + ${diceValue} = ${newHomeIndex})`);
-            } else {
-                // Overshooting: If roll is too high, no move is possible
-                console.log(`📋 Token ${token.id} CANNOT move: overshoot HOME (${currentPos.index} + ${diceValue} = ${newHomeIndex} > ${HOME_PATH_LENGTH})`);
+                console.log(`📋 Token ${token.id} enters HOME (roll=${diceValue}, pos=${currentPos.index}, total=${newHomeIndex} >= ${HOME_PATH_LENGTH})`);
             }
         }
     }
@@ -1100,7 +1100,10 @@ exports.handleAutoMove = async (gameId) => {
         // This case should ideally be handled by auto-passing the turn.
         // But if we get here, we pass the turn.
         console.log(`🤖 Auto-move called with no legal moves. Passing turn.`);
-        const grantExtraTurn = game.diceValue === 6;
+        // ⚠️ FIX: When there are NO legal moves, rolling a 6 should NOT grant an extra turn.
+        // Previously: `grantExtraTurn = game.diceValue === 6` would freeze the game for bots.
+        // This now matches the behavior of handlePassTurn (line 1176: grantExtraTurn = false).
+        const grantExtraTurn = false;
         const nextPlayerIndex = getNextPlayerIndex(game, game.currentPlayerIndex, grantExtraTurn);
         game.currentPlayerIndex = nextPlayerIndex;
         game.turnState = 'ROLLING';
