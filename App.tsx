@@ -32,6 +32,8 @@ import ReferralDashboard from './components/ReferralDashboard';
 import AdminDiceControl from './components/AdminDiceControl';
 import CompactGemReroll from './components/CompactGemReroll';
 import DepositToast from './components/DepositToast';
+import { API_URL } from './lib/apiConfig';
+
 
 type View = 'setup' | 'game' | 'multiplayer-lobby' | 'login' | 'register' | 'reset-password' | 'superadmin' | 'wallet';
 
@@ -88,6 +90,10 @@ const AppContent: React.FC = () => {
   const [winNotification, setWinNotification] = useState<WinNotificationData | null>(null);
   const [depositToastData, setDepositToastData] = useState<{ amount: number; type: 'DEPOSIT' | 'WITHDRAWAL'; newBalance: number; message: string } | null>(null);
 
+  // Sifalo Pay: holds the order_id to verify once auth is confirmed
+  const [pendingSifaloOrderId, setPendingSifaloOrderId] = useState<string | null>(null);
+  const [pendingSifaloSid, setPendingSifaloSid] = useState<string | null>(null);
+
   // Connect to global socket for financial notifications
   useGlobalSocket(user?.id || user?._id, isAuthenticated);
 
@@ -96,6 +102,11 @@ const AppContent: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     const googleToken = params.get('google_token');
     const authError = params.get('auth_error');
+
+    // ── Sifalo Pay return detection ──
+    const isSifaloReturn = params.get('sifalo_deposit') === '1';
+    const sifaloOrderId = params.get('order_id');
+    const sifaloSid = params.get('sid');
 
     if (googleToken) {
       // Clear the token from the URL immediately
@@ -111,8 +122,72 @@ const AppContent: React.FC = () => {
         server_error: 'Server error during Google login. Please try again.',
       };
       setGoogleAuthError(messages[authError] || 'Google login failed. Please try again.');
+    } else if (isSifaloReturn && sifaloOrderId) {
+      // Clear URL params, store pending verification
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setPendingSifaloOrderId(sifaloOrderId);
+      if (sifaloSid) setPendingSifaloSid(sifaloSid);
     }
   }, []);
+
+  // Once authenticated, process any pending Sifalo Pay verification
+  useEffect(() => {
+    if (!pendingSifaloOrderId || !isAuthenticated || authLoading) return;
+
+    const verifyDeposit = async () => {
+      try {
+        const token = localStorage.getItem('ludo_token');
+        const res = await fetch(`${API_URL}/wallet/sifalo-verify`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            order_id: pendingSifaloOrderId,
+            sid: pendingSifaloSid || undefined,
+            userId: user?.id || user?._id,
+          }),
+        });
+
+        const data = await res.json();
+        setPendingSifaloOrderId(null);
+        setPendingSifaloSid(null);
+
+        if (data.success) {
+          if (refreshUser) await refreshUser();
+          // Fire BALANCE_CREDITED so the DepositToast shows
+          window.dispatchEvent(new CustomEvent('BALANCE_CREDITED', {
+            detail: {
+              amount: data.amount || 0,
+              type: 'DEPOSIT',
+              newBalance: data.newBalance || 0,
+              message: `✅ $${(data.amount || 0).toFixed(2)} si toos ah loo dhigay! (${data.paymentType || 'Sifalo Pay'})`,
+            }
+          }));
+          // Open the wallet so the user can see their new balance
+          setShowWallet(true);
+        } else {
+          // Show failure toast
+          window.dispatchEvent(new CustomEvent('BALANCE_CREDITED', {
+            detail: {
+              amount: 0,
+              type: 'DEPOSIT',
+              newBalance: user?.balance || 0,
+              message: `❌ Lacag-dhigasho la diidey: ${data.error || 'Payment not completed'}`,
+            }
+          }));
+        }
+      } catch (e) {
+        console.error('[SifaloPay] Verify error in App.tsx:', e);
+        setPendingSifaloOrderId(null);
+        setPendingSifaloSid(null);
+      }
+    };
+
+    verifyDeposit();
+  }, [pendingSifaloOrderId, isAuthenticated, authLoading]);
+
 
   // Unlock audio and request PUSH NOTIFICATION permissions on first user interaction
   useEffect(() => {

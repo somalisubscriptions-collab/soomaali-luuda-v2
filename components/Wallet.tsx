@@ -43,6 +43,7 @@ const Wallet: React.FC<WalletProps> = ({ user, onClose, onUpdateUser }) => {
     const [myRequests, setMyRequests] = useState<FinancialRequest[]>([]);
     const [tab, setTab] = useState<'action' | 'history'>('action');
     const [loading, setLoading] = useState(false);
+    const [sifaloLoading, setSifaloLoading] = useState(false);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [userLoading, setUserLoading] = useState(true);
     const [showSuccessMessage, setShowSuccessMessage] = useState(false);
@@ -202,6 +203,54 @@ const Wallet: React.FC<WalletProps> = ({ user, onClose, onUpdateUser }) => {
         }
     };
 
+    // ── SIFALO PAY INSTANT DEPOSIT ──────────────────────────────────────────
+    const handleSifaloDeposit = async () => {
+        const val = parseFloat(amount);
+        if (!val || val <= 0) {
+            setBannerMessage('Fadlan geli xaddiga lacagta aad dhigi doonto');
+            setTimeout(() => setBannerMessage(null), 5000);
+            return;
+        }
+        if (val > 300) {
+            setBannerMessage('Maximum lacag-dhigasho: $300');
+            setTimeout(() => setBannerMessage(null), 5000);
+            return;
+        }
+
+        setSifaloLoading(true);
+        try {
+            const token = localStorage.getItem('ludo_token');
+            if (!token) return;
+
+            const res = await fetch(`${API_URL}/wallet/sifalo-checkout`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    amount: val,
+                    userId: currentUser?.id || user.id,
+                }),
+            });
+
+            const data = await res.json();
+            if (data.success && data.checkoutUrl) {
+                // Redirect to Sifalo Pay hosted checkout
+                window.location.href = data.checkoutUrl;
+            } else {
+                setBannerMessage(data.error || 'Failed to start payment. Try again.');
+                setTimeout(() => setBannerMessage(null), 8000);
+            }
+        } catch (e) {
+            setBannerMessage('Network error. Is the backend running?');
+            setTimeout(() => setBannerMessage(null), 8000);
+        } finally {
+            setSifaloLoading(false);
+        }
+    };
+    // ────────────────────────────────────────────────────────────────────────
+
     return (
         <div className="fixed inset-0 bg-black/80 flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
             <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700 overflow-hidden flex flex-col my-auto">
@@ -298,13 +347,43 @@ const Wallet: React.FC<WalletProps> = ({ user, onClose, onUpdateUser }) => {
                                 <p className="text-[10px] text-slate-500 mt-1 text-right">Min: $0.01 | Max Lacag-Dhigasho: $300</p>
                             </div>
 
+                            {/* ── SIFALO PAY INSTANT DEPOSIT ── */}
+                            <button
+                                onClick={handleSifaloDeposit}
+                                disabled={sifaloLoading || !amount || parseFloat(amount) <= 0}
+                                className="w-full relative overflow-hidden bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold py-4 rounded-xl transition-all transform active:scale-95 disabled:opacity-50 shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2 text-base"
+                            >
+                                {sifaloLoading ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        <span>Xidhinaya Sifalo Pay...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="text-xl">⚡</span>
+                                        <span>Dhig Lacag — Sifalo Pay</span>
+                                        <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full ml-1">AUTO</span>
+                                    </>
+                                )}
+                            </button>
+                            <p className="text-[10px] text-emerald-400/70 text-center -mt-3">
+                                EVC · eDahab · ZAAD · SAHAL — Lacagta isla markiiba ku soo gashaa
+                            </p>
+
+                            {/* Divider */}
+                            <div className="flex items-center gap-3 my-1">
+                                <div className="flex-1 h-px bg-slate-700" />
+                                <span className="text-[10px] text-slate-500 uppercase">ama codsii manually</span>
+                                <div className="flex-1 h-px bg-slate-700" />
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <button
                                     onClick={() => handleRequest('DEPOSIT')}
                                     disabled={loading}
-                                    className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-lg transition-transform transform active:scale-95 disabled:opacity-50 shadow-lg shadow-green-900/20"
+                                    className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg transition-transform transform active:scale-95 disabled:opacity-50 shadow-lg"
                                 >
-                                    {loading ? '...' : 'Lacag-Dhigasho'}
+                                    {loading ? '...' : '📋 Codso Deposit'}
                                 </button>
                                 <button
                                     onClick={() => handleRequest('WITHDRAWAL')}

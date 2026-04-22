@@ -445,6 +445,18 @@ app.use('/api/admin/analytics', authenticateToken, authorizeAdmin, analyticsRout
 app.use('/api/admin/analytics', authenticateToken, authorizeAdmin, todayAnalyticsRoutes);
 app.use('/api/gems', authenticateToken, gemsRoutes);
 
+// Sifalo Pay payment gateway routes
+const sifaloPay = require('./routes/sifaloPay');
+// Allow Sifalo verification without token (for webhooks/IPN)
+app.use('/api/wallet', (req, res, next) => {
+  if (req.path === '/sifalo-verify' && req.method === 'POST') {
+    return next();
+  }
+  authenticateToken(req, res, next);
+}, sifaloPay);
+
+
+
 // --- AUTHENTICATION ROUTES ---
 
 // Helper function to normalize phone numbers
@@ -3287,7 +3299,9 @@ app.get('/api/wallet/my-requests', authenticateToken, async (req, res) => {
 app.post('/api/wallet/request', authenticateToken, async (req, res) => {
   // Use userId from token (more secure) or fallback to body
   const userId = req.user?.userId || req.body.userId;
-  const { userName, type, amount, details, paymentMethod } = req.body;
+  const { userName, type, amount, details, paymentMethod, paymentPin, pin } = req.body;
+  const submittedPaymentPin = String(paymentPin || pin || '').trim();
+  const isAutoCreditPinDeposit = type === 'DEPOSIT' && submittedPaymentPin.length > 0;
 
   if (!userId) {
     return res.status(400).json({ error: "User ID is required" });
@@ -3305,20 +3319,23 @@ app.post('/api/wallet/request', authenticateToken, async (req, res) => {
 
     let user = syncResult.user;
 
-    // Check for pending requests
-    const pendingRequest = await FinancialRequest.findOne({
-      userId: user._id,
-      status: 'PENDING'
-    });
+    // Only enforce pending-request lock for manual requests.
+    // PIN-verified deposits are auto-credited and should not be blocked.
+    if (!isAutoCreditPinDeposit) {
+      const pendingRequest = await FinancialRequest.findOne({
+        userId: user._id,
+        status: 'PENDING'
+      });
 
-    if (pendingRequest) {
-      // Build a friendly Somali message including the user's first name when available
-      const rawName = (user && (user.username || user.userName)) || userName || '';
-      const firstName = rawName ? String(rawName).trim().split(/\s+/)[0] : '';
-      const displayName = firstName || 'Saaxiib';
-      const phone = '0610251014';
-      const message = `Waanka xunnahay ${displayName} horey ayaad dalab u gudbisay, fadlan la xariir ${phone} si laguugu xaqiijiyo mahadsanid`;
-      return res.status(400).json({ error: message });
+      if (pendingRequest) {
+        // Build a friendly Somali message including the user's first name when available
+        const rawName = (user && (user.username || user.userName)) || userName || '';
+        const firstName = rawName ? String(rawName).trim().split(/\s+/)[0] : '';
+        const displayName = firstName || 'Saaxiib';
+        const phone = '0610251014';
+        const message = `Waanka xunnahay ${displayName} horey ayaad dalab u gudbisay, fadlan la xariir ${phone} si laguugu xaqiijiyo mahadsanid`;
+        return res.status(400).json({ error: message });
+      }
     }
 
     if (type === 'WITHDRAWAL') {
@@ -3357,7 +3374,10 @@ app.post('/api/wallet/request', authenticateToken, async (req, res) => {
       amount,
       details,
       paymentMethod,
-      status: 'PENDING'
+      status: isAutoCreditPinDeposit ? 'APPROVED' : 'PENDING',
+      processedBy: isAutoCreditPinDeposit ? 'payment_pin_auto' : undefined,
+      approverName: isAutoCreditPinDeposit ? 'Payment PIN (Auto)' : undefined,
+      adminComment: isAutoCreditPinDeposit ? 'Auto-approved: payment PIN verified' : undefined
     });
     await newRequest.save();
 
@@ -3366,6 +3386,12 @@ app.post('/api/wallet/request', authenticateToken, async (req, res) => {
     if (!savedRequest) {
       console.error(`❌ CRITICAL: Request ${newRequest._id} was not saved to database!`);
       return res.status(500).json({ error: "Failed to save request to database" });
+    }
+
+    if (isAutoCreditPinDeposit) {
+      user.balance = roundCurrency(user.balance + amount);
+      await autoSettleLoansOnDeposit(user, 'payment PIN auto-credit');
+      await user.save();
     }
 
     // Log the request creation for admin visibility
@@ -3382,7 +3408,7 @@ app.post('/api/wallet/request', authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      message: "Request submitted for admin approval",
+      message: isAutoCreditPinDeposit ? "Deposit credited automatically" : "Request submitted for admin approval",
       request: {
         id: newRequest._id.toString(),
         _id: newRequest._id.toString(),
