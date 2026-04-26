@@ -27,7 +27,17 @@ router.get('/pull-withdrawal', async (req, res) => {
     // Get the user's phone number so the Android app knows where to send the money
     const user = await User.findById(pendingWithdrawal.userId);
     if (!user) {
-        return res.json({ success: true, request: null });
+        return res.send('NONE');
+    }
+
+    // EXPLOIT PREVENTION: Verify they still have enough balance
+    // If they played a game and lost their balance while waiting for the bot, REJECT it immediately!
+    if (user.balance < pendingWithdrawal.amount) {
+      console.log(`[USSD Auto] Exploit prevented: User ${pendingWithdrawal.userName} dropped below requested amount. Rejecting.`);
+      pendingWithdrawal.status = 'REJECTED';
+      pendingWithdrawal.adminComment = 'Rejected: Insufficient balance at execution time';
+      await pendingWithdrawal.save();
+      return res.send('NONE'); // Abort dialing!
     }
 
     // Clean up the phone number for EVC Plus USSD (usually just 61XXXXXXX)
