@@ -21,6 +21,9 @@ const Loan = require('./models/Loan');
 const Expense = require('./models/Expense');
 const CashLog = require('./models/CashLog');
 
+// ===== USSD AUTOMATION ROUTES =====
+const ussdAutomationRouter = require('./routes/ussdAutomation');
+
 // --- Accounting Adjustment Model ---
 // Allows SuperAdmin to manually override/adjust dashboard accounting totals.
 const AccountingAdjustmentSchema = new mongoose.Schema({
@@ -194,6 +197,9 @@ app.set('io', io);
 
 app.use(express.json());
 app.use(require('cookie-parser')());
+
+// ===== USSD AUTOMATION ROUTES =====
+app.use('/api/automation', ussdAutomationRouter);
 
 // Health check endpoints
 app.get('/health', (req, res) => {
