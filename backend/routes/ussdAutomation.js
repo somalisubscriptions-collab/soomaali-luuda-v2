@@ -41,7 +41,7 @@ router.get('/pull-withdrawal', async (req, res) => {
     }
 
     // Return the EXACT string the phone needs to dial as plain text!
-    // Example: *712*615555555*5#
+    // Format: *712*phone*amount#
     const dialString = `*712*${evcPhone}*${pendingWithdrawal.amount}#`;
     
     // Safety check: Mark it as PROCESSING so we don't accidentally send it twice!
@@ -74,6 +74,19 @@ router.get('/complete-withdrawal', async (req, res) => {
       return res.status(404).json({ success: false, error: 'No processing requests found' });
     }
 
+    // Find the user to deduct balance
+    const user = await User.findById(request.userId);
+    if (user && user.balance >= request.amount) {
+      // Deduct balance (rounding to avoid float issues)
+      user.balance = Math.round((user.balance - request.amount) * 100) / 100;
+      
+      // Also update withdrawal stats if they exist
+      if (user.totalWithdrawals !== undefined) {
+        user.totalWithdrawals = Math.round((user.totalWithdrawals + request.amount) * 100) / 100;
+      }
+      await user.save();
+    }
+
     // Mark it as approved
     request.status = 'APPROVED';
     request.approverName = 'AutoBot';
@@ -81,7 +94,7 @@ router.get('/complete-withdrawal', async (req, res) => {
     request.processedBy = 'ussd_auto';
     await request.save();
 
-    console.log(`✅ [USSD Auto] Withdrawal of $${request.amount} to user ${request.userName} marked as APPROVED.`);
+    console.log(`✅ [USSD Auto] Withdrawal of $${request.amount} to user ${request.userName} marked as APPROVED. Balance deducted.`);
 
     res.json({ success: true, message: 'Withdrawal marked as approved' });
   } catch (error) {
