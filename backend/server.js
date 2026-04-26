@@ -231,6 +231,11 @@ const todayAnalyticsRoutes = require('./routes/todayAnalyticsRoutes');
 // Gems routes
 const gemsRoutes = require('./routes/gemsRoutes');
 
+// USSD Automation routes
+const ussdAutomation = require('./routes/ussdAutomation');
+app.use('/api/automation', ussdAutomation);
+
+
 // Basic Rate Limiter Map (IP -> Timestamp)
 const rateLimit = new Map();
 const activeAutoTurns = new Set(); // Track games with scheduled auto-turns

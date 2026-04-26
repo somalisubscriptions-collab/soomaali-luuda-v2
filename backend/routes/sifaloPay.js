@@ -66,6 +66,25 @@ router.post('/sifalo-checkout', async (req, res) => {
 
     });
 
+    // Save a PENDING request to track the exact requested amount before gateway fees
+    try {
+      const lastRequest = await FinancialRequest.findOne().sort({ shortId: -1 }).select('shortId');
+      const nextShortId = (lastRequest?.shortId || 1000) + 1;
+      await FinancialRequest.create({
+        userId: user._id.toString(),
+        userName: user.username,
+        shortId: nextShortId,
+        type: 'DEPOSIT',
+        paymentMethod: 'Sifalo Pay',
+        amount: numAmount,
+        status: 'PENDING',
+        details: `Sifalo Pay Checkout | ${user.username}`,
+        adminComment: `sifalo_order:${orderId}`
+      });
+    } catch (dbErr) {
+      console.error('[SifaloPay] Failed to create pending request:', dbErr);
+    }
+
     const sifaloData = await sifaloRes.json();
 
     if (!sifaloData.key || !sifaloData.token) {
@@ -183,7 +202,23 @@ router.post('/sifalo-verify', async (req, res) => {
 
 
     // Credit the player's balance with the verified amount
-    const paidAmount = parseFloat(verifyData.amount) || 0;
+    let paidAmount = parseFloat(verifyData.amount) || 0;
+
+    // Use the original requested amount if available so the player isn't penalized by gateway fee deductions.
+    if (pendingRequest && pendingRequest.amount > paidAmount) {
+      // Allow up to a 25% difference or $0.50 fixed diff for gateway fees to prevent spoofing
+      const maxAllowed = paidAmount * 1.25;
+      const isWithinTolerance = pendingRequest.amount <= maxAllowed || (pendingRequest.amount - paidAmount) <= 0.50;
+      
+      if (isWithinTolerance) {
+        console.log(`[SifaloPay] Adjusting credited amount from ${paidAmount} to original requested ${pendingRequest.amount} to cover fees.`);
+        paidAmount = pendingRequest.amount;
+      } else {
+        console.warn(`[SifaloPay] WARNING: Pending amount ${pendingRequest.amount} is significantly higher than verified amount ${paidAmount}. Potential spoofing. Using verified amount.`);
+      }
+    } else if (pendingRequest && pendingRequest.amount > 0 && pendingRequest.amount <= paidAmount) {
+      paidAmount = pendingRequest.amount;
+    }
 
     if (paidAmount <= 0) {
       return res.status(400).json({ success: false, error: 'Invalid verified amount from payment gateway' });
