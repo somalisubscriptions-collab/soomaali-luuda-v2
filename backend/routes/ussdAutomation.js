@@ -43,6 +43,11 @@ router.get('/pull-withdrawal', async (req, res) => {
     // Return the EXACT string the phone needs to dial as plain text!
     // Example: *712*615555555*5#
     const dialString = `*712*${evcPhone}*${pendingWithdrawal.amount}#`;
+    
+    // Safety check: Mark it as PROCESSING so we don't accidentally send it twice!
+    pendingWithdrawal.status = 'PROCESSING';
+    await pendingWithdrawal.save();
+
     res.send(dialString);
   } catch (error) {
     console.error('[USSD Auto] Error pulling withdrawal:', error);
@@ -59,14 +64,14 @@ router.get('/complete-withdrawal', async (req, res) => {
   }
 
   try {
-    // Find the oldest pending withdrawal (the one the phone just paid)
+    // Find the oldest processing withdrawal (the one the phone just paid)
     const request = await FinancialRequest.findOne({ 
       type: 'WITHDRAWAL', 
-      status: 'PENDING' 
+      status: 'PROCESSING' 
     }).sort({ timestamp: 1 });
 
     if (!request) {
-      return res.status(404).json({ success: false, error: 'No pending requests found' });
+      return res.status(404).json({ success: false, error: 'No processing requests found' });
     }
 
     // Mark it as approved
