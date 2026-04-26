@@ -8,7 +8,7 @@ const FinancialRequestSchema = new mongoose.Schema({
   type: { type: String, enum: ['DEPOSIT', 'WITHDRAWAL'], required: true },
   paymentMethod: { type: String },
   amount: { type: Number, required: true, min: 0.01 },
-  status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' },
+  status: { type: String, enum: ['PENDING', 'PROCESSING', 'APPROVED', 'REJECTED'], default: 'PENDING' },
   details: String,
   timestamp: { type: Date, default: Date.now },
   adminComment: String,
