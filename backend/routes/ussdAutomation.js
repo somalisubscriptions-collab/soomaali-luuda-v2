@@ -53,11 +53,20 @@ router.get('/pull-withdrawal', async (req, res) => {
     // Return the EXACT string the phone needs to dial as plain text!
     // Format: *712*phone*amount#
     const dialString = `*712*${evcPhone}*${pendingWithdrawal.amount}#`;
-    
+    // EXPLOIT PREVENTION 2: Lock the funds NOW!
+    // Deduct the balance before we even send the USSD string to the phone.
+    // This stops them from spending it in a game during the 5-10 seconds the phone is typing the PIN!
+    user.balance = Math.round((user.balance - pendingWithdrawal.amount) * 100) / 100;
+    if (user.totalWithdrawals !== undefined) {
+      user.totalWithdrawals = Math.round((user.totalWithdrawals + pendingWithdrawal.amount) * 100) / 100;
+    }
+    await user.save();
+
     // Safety check: Mark it as PROCESSING so we don't accidentally send it twice!
     pendingWithdrawal.status = 'PROCESSING';
     await pendingWithdrawal.save();
 
+    console.log(`[USSD Auto] Locked $${pendingWithdrawal.amount} from ${user.username} and sent dial string to phone.`);
     res.send(dialString);
   } catch (error) {
     console.error('[USSD Auto] Error pulling withdrawal:', error);
@@ -84,18 +93,8 @@ router.get('/complete-withdrawal', async (req, res) => {
       return res.status(404).json({ success: false, error: 'No processing requests found' });
     }
 
-    // Find the user to deduct balance
-    const user = await User.findById(request.userId);
-    if (user && user.balance >= request.amount) {
-      // Deduct balance (rounding to avoid float issues)
-      user.balance = Math.round((user.balance - request.amount) * 100) / 100;
-      
-      // Also update withdrawal stats if they exist
-      if (user.totalWithdrawals !== undefined) {
-        user.totalWithdrawals = Math.round((user.totalWithdrawals + request.amount) * 100) / 100;
-      }
-      await user.save();
-    }
+    // Note: We already deducted the balance in /pull-withdrawal to prevent double-spending!
+    // We just need to mark it as approved here.
 
     // Mark it as approved
     request.status = 'APPROVED';
