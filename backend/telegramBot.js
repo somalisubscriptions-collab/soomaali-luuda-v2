@@ -15,7 +15,7 @@ const bot = new TelegramBot(token, { polling: true });
 // Track what the user is currently doing
 const userState = {};
 
-// Permanent Keyboard Options
+// Permanent Keyboard Options for Players
 const keyboardOptions = {
     reply_markup: {
         keyboard: [
@@ -27,12 +27,22 @@ const keyboardOptions = {
     }
 };
 
+// Permanent Keyboard Options for Admin (Inline Buttons)
+const adminInlineOptions = {
+    reply_markup: {
+        inline_keyboard: [
+            [{ text: "📊 Report (Maanta)", callback_data: "cmd_report" }],
+            [{ text: "📈 Chart (7 Maalmood)", callback_data: "cmd_chart" }]
+        ]
+    }
+};
+
 // Welcome message
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
   // If admin sends start, don't show the player menu
   if (chatId.toString() === ADMIN_CHAT_ID) {
-      return bot.sendMessage(chatId, "👨‍💻 Welcome Admin! Waxaad halkan ka arki doontaa dhamaan fariimaha macmiisha. Si aad ugu jawaabto, kaliya 'Reply' dheh fariinta aad rabto.", keyboardOptions);
+      return bot.sendMessage(chatId, "👨‍💻 Welcome Admin! Waxaad halkan ka arki doontaa dhamaan fariimaha macmiisha. Si aad ugu jawaabto, kaliya 'Reply' dheh fariinta aad rabto.\n\nRiix badhamadan hoose si aad xisaabta u aragto:", adminInlineOptions);
   }
 
   const welcomeMessage = `
@@ -85,12 +95,7 @@ const handleHelp = (chatId) => {
 bot.onText(/\/caawin/, (msg) => handleHelp(msg.chat.id));
 bot.onText(/🆘 Caawin/, (msg) => handleHelp(msg.chat.id));
 
-// Admin Report command (/report)
-bot.onText(/\/report/, async (msg) => {
-    const chatId = msg.chat.id;
-    // Only Admin can run this
-    if (chatId.toString() !== ADMIN_CHAT_ID) return;
-
+const generateReport = async (chatId) => {
     bot.sendMessage(chatId, "⏳ Diyaarinta report-ka maanta, fadlan sug...");
 
     try {
@@ -207,13 +212,14 @@ bot.onText(/\/report/, async (msg) => {
         console.error(err);
         bot.sendMessage(chatId, "❌ Cilad ayaa dhacday, isku day mar kale.");
     }
+};
+
+// Map /report command to the function
+bot.onText(/\/report/, (msg) => {
+    if (msg.chat.id.toString() === ADMIN_CHAT_ID) generateReport(msg.chat.id);
 });
 
-// Admin Chart command (/chart)
-bot.onText(/\/chart/, async (msg) => {
-    const chatId = msg.chat.id;
-    if (chatId.toString() !== ADMIN_CHAT_ID) return;
-
+const generateChart = async (chatId) => {
     bot.sendMessage(chatId, "🎨 Sawirida graph-ka, fadlan sug...");
 
     try {
@@ -279,6 +285,39 @@ bot.onText(/\/chart/, async (msg) => {
     } catch (err) {
         console.error(err);
         bot.sendMessage(chatId, "❌ Cilad ayaa dhacday graph-ka, isku day mar kale.");
+    }
+};
+
+// Map /chart command to the function
+bot.onText(/\/chart/, (msg) => {
+    if (msg.chat.id.toString() === ADMIN_CHAT_ID) generateChart(msg.chat.id);
+});
+
+// Listen for Inline Button clicks
+bot.on('callback_query', async (query) => {
+    console.log("🔘 Button clicked! Data:", query.data);
+    
+    try {
+        const chatId = query.message.chat.id;
+        const data = query.data;
+
+        // Only Admin can click these
+        if (chatId.toString() !== ADMIN_CHAT_ID) {
+            console.log("❌ Unauthorized button click from:", chatId);
+            return;
+        }
+
+        await bot.answerCallbackQuery(query.id).catch(e => console.error("Error answering query:", e));
+
+        if (data === 'cmd_report') {
+            console.log("📊 Triggering generateReport...");
+            await generateReport(chatId);
+        } else if (data === 'cmd_chart') {
+            console.log("📈 Triggering generateChart...");
+            await generateChart(chatId);
+        }
+    } catch (err) {
+        console.error("❌ Error in callback_query:", err);
     }
 });
 
