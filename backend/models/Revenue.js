@@ -3,9 +3,9 @@ const mongoose = require('mongoose');
 const RevenueSchema = new mongoose.Schema({
   gameId: { type: String, required: true },
   gameType: { type: String, enum: ['LUDO', 'TIC_TAC_TOE'], default: 'LUDO' }, // NEW: Track game type
-  amount: { type: Number, required: true }, // The 10% commission (rake)
+  amount: { type: Number, required: function() { return this.amount != null; }, default: 0 }, // The 10% commission (rake) - 0 allowed for gem-only records
   gemRevenue: { type: Number, default: 0 }, // Revenue from gem re-rolls in this game
-  totalPot: { type: Number, required: true }, // Total stake from all players
+  totalPot: { type: Number, required: function() { return this.totalPot != null; }, default: 0 }, // Total stake - 0 allowed for gem-only records
   winnerId: { type: String, required: true },
   timestamp: { type: Date, default: Date.now },
   reason: { type: String, default: 'Game Commission' },

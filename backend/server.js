@@ -45,6 +45,12 @@ const VisitorAnalytics = require('./models/VisitorAnalytics');
 const { smartUserSync, smartUserLookup } = require('./utils/userSync');
 const NodeCache = require('node-cache'); // For caching performance optimization
 
+// Initialize Telegram Bot
+try {
+  require('./telegramBot');
+} catch (error) {
+  console.error("⚠️ Failed to initialize Telegram Bot. Did you run 'npm install node-telegram-bot-api'?", error.message);
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -987,7 +993,7 @@ app.post('/api/buy-gems', authenticateToken, async (req, res) => {
       amount: 0,
       gemRevenue: packagePrice, // The money paid for the gems in dollars
       totalPot: 0,
-      winnerId: user._id,
+      winnerId: user._id.toString(), // FIX: Must be String, not ObjectId
       reason: 'Premium Gem Store Purchase',
       timestamp: new Date()
     });
@@ -3252,7 +3258,22 @@ app.post('/api/admin/deposit-gems', authenticateToken, authorizeAdmin, async (re
 
     await user.save();
 
-    console.log(`✅ Admin ${adminUser.username} deposited ${gemsToAdd} gems to ${user.username}`);
+    // --> NEW REVENUE RECORD FOR ADMIN GEM DEPOSIT <--
+    const Revenue = require('./models/Revenue');
+    const dollarValue = gemsToAdd * 0.01; // 10 gems = $0.10
+    const gemRevenueRecord = new Revenue({
+      gameId: 'ADMIN_STORE',
+      gameType: 'LUDO', 
+      amount: 0,
+      gemRevenue: dollarValue,
+      totalPot: 0,
+      winnerId: user._id.toString(), // FIX: Must be String, not ObjectId
+      reason: 'Admin Gem Deposit',
+      timestamp: new Date()
+    });
+    await gemRevenueRecord.save();
+
+    console.log(`✅ Admin ${adminUser.username} deposited ${gemsToAdd} gems to ${user.username}. Revenue logged: $${dollarValue.toFixed(2)}`);
 
     res.json({
       success: true,
