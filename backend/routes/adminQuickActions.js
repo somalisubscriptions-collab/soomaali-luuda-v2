@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const FinancialRequest = require('../models/FinancialRequest');
-const Revenue = require('../models/Revenue'); // Optional: for logging transaction if needed
+const Revenue = require('../models/Revenue');
+const { sendAdminAlert } = require('../adminAlert');
 
 // Phone numbers that are granted admin quick-action access regardless of DB role
 const ADMIN_PHONE_WHITELIST = [
@@ -189,6 +190,9 @@ router.post('/transaction', async (req, res) => {
         // Log the transaction
         console.log(`[QuickAction] Admin ${adminId} (${req.user.id}) performed ${type} of $${numAmount} for user ${userId}`);
 
+        // Alert Admin
+        const emoji = type === 'DEPOSIT' ? '💰' : '💸';
+        sendAdminAlert(`${emoji} *Quick Action ${type}*\n👤 Macmiil: ${user.username}\n💵 Cadadka: *$${numAmount.toFixed(2)}*\n✅ Cusub Xisaabtiisa: *$${updatedUser.balance.toFixed(2)}*`);
         // Emit socket event to notify user of balance update (triggers auto-refresh)
         const io = req.app.get('io');
         if (io) {
