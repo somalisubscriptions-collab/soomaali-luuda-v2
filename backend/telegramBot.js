@@ -16,6 +16,17 @@ const bot = new TelegramBot(token, { polling: true });
 const userState = {};
 
 // ============================================================
+// TUTORIAL VIDEO FILE_IDs
+// Run `node get_video_ids.js`, send each video to your bot,
+// then paste the file_id values below.
+// ============================================================
+const VIDEOS = {
+    register: null, // Paste file_id for "How to register" video here
+    deposit:  null, // Paste file_id for "How to deposit" video here
+    withdraw: null, // Paste file_id for "How to withdraw" video here
+};
+
+// ============================================================
 // PLAYER MENU - 4 inline buttons shown on /start
 // ============================================================
 const playerMenuOptions = {
@@ -252,36 +263,51 @@ bot.on('callback_query', async (query) => {
         const username = query.from.username ? `@${query.from.username}` : query.from.first_name;
 
         if (data === 'info_register') {
+            if (VIDEOS.register) {
+                await bot.sendVideo(chatId, VIDEOS.register, { caption: "Halkan ka daawo sida laisku diiwaan galiyo 📹" });
+            }
             bot.sendMessage(chatId,
                 "📝 *Sidee laisku diiwaan galiyaa?*\n\n" +
-                "1️⃣ Ku dhufo gameka 👉 *laandhuu.online*\n\n" +
+                "1️⃣ Ku dhufo gameka 👉 https://www.laadhuu.online/\n\n" +
                 "2️⃣ Taabo *\"Continue with Email\"* kadib dooro emailka aad rabto\n\n" +
                 "3️⃣ Gali telefon numberka lacagta lagugu soo diri doono\n\n" +
-                "4️⃣ Sidaas ayaad isu diiwaan gelisay ✅",
-                { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "⬅️ Ku noqo", callback_data: "back_menu" }]] } }
+                "4️⃣ Sidaas ayaad isu diiwaan gelisay ✅\n\n" +
+                "━━━━━━━━━━━━━━━━\n" +
+                "Su'aal kale ma qabtaa? 👇",
+                { parse_mode: 'Markdown', ...playerMenuOptions }
             );
 
         } else if (data === 'info_deposit') {
+            if (VIDEOS.deposit) {
+                await bot.sendVideo(chatId, VIDEOS.deposit, { caption: "Halkan ka daawo sida lacagta loo dhigto 📹" });
+            }
             bot.sendMessage(chatId,
                 "💰 *Sidee lacag loo dhigtaa?*\n\n" +
-                "1️⃣ Fur boggayaga oo gal xisaabta\n" +
-                "2️⃣ Guji *'Dhig Lacag'*\n" +
+                "1️⃣ Fur boggayaga 👉 https://www.laadhuu.online/ oo gal xisaabta\n\n" +
+                "2️⃣ Guji *'Dhig Lacag'*\n\n" +
                 "3️⃣ Dir lacagta EVC Plus numberka:\n" +
-                "    📱 *+252 63 XXX XXXX*\n" +
-                "4️⃣ Noo soo dir screenshots-ka ama nambarka confirmation-ka\n" +
-                "5️⃣ Maamulka wuxuu xaqiijin doonaa si dhakhso ah ✅",
-                { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "⬅️ Ku noqo", callback_data: "back_menu" }]] } }
+                "    📱 *+252 63 XXX XXXX*\n\n" +
+                "4️⃣ Noo soo dir screenshots-ka ama nambarka confirmation-ka\n\n" +
+                "5️⃣ Maamulka wuxuu xaqiijin doonaa si dhakhso ah ✅\n\n" +
+                "━━━━━━━━━━━━━━━━\n" +
+                "Su'aal kale ma qabtaa? 👇",
+                { parse_mode: 'Markdown', ...playerMenuOptions }
             );
 
         } else if (data === 'info_withdraw') {
+            if (VIDEOS.withdraw) {
+                await bot.sendVideo(chatId, VIDEOS.withdraw, { caption: "Halkan ka daawo sida lacagta loola baxo 📹" });
+            }
             bot.sendMessage(chatId,
                 "💸 *Sidee lacag loola baxaa?*\n\n" +
-                "1️⃣ Fur boggayaga oo gal xisaabta\n" +
-                "2️⃣ Guji *'Lacag Bixid'*\n" +
-                "3️⃣ Geli cadadka lacagta iyo EVC Plus numberkaaga\n" +
-                "4️⃣ Codsigaaga waxaa u diri maamulka\n" +
-                "5️⃣ Lacagtu waxay ku soo gaari doontaa 5-15 daqiiqo gudahood 💸",
-                { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "⬅️ Ku noqo", callback_data: "back_menu" }]] } }
+                "1️⃣ Fur boggayaga 👉 https://www.laadhuu.online/ oo gal xisaabta\n\n" +
+                "2️⃣ Guji *'Lacag Bixid'*\n\n" +
+                "3️⃣ Geli cadadka lacagta iyo EVC Plus numberkaaga\n\n" +
+                "4️⃣ Codsigaaga waxaa u diri maamulka\n\n" +
+                "5️⃣ Lacagtu waxay ku soo gaari doontaa 5-15 daqiiqo gudahood 💸\n\n" +
+                "━━━━━━━━━━━━━━━━\n" +
+                "Su'aal kale ma qabtaa? 👇",
+                { parse_mode: 'Markdown', ...playerMenuOptions }
             );
 
         } else if (data === 'contact_admin') {
@@ -344,6 +370,18 @@ bot.on('message', async (msg) => {
     }
 });
 
-console.log("🤖 Telegram Bot initialized with 4-option player menu...");
+/**
+ * Helper to send real-time alerts to the Admin
+ */
+const sendAdminAlert = (message) => {
+    if (!ADMIN_CHAT_ID) return;
+    bot.sendMessage(ADMIN_CHAT_ID, message, { parse_mode: 'Markdown' })
+       .catch(err => console.error("❌ Failed to send admin alert:", err.message));
+};
 
-module.exports = bot;
+console.log("🤖 Telegram Bot initialized with Real-Time Alerts feature...");
+
+module.exports = {
+    bot,
+    sendAdminAlert
+};

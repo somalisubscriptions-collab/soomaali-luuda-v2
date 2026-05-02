@@ -38,9 +38,13 @@ router.post('/deposit-gems', async (req, res) => {
             createdAt: new Date()
         });
 
+        const { sendAdminAlert } = require('../telegramBot');
         await user.save();
 
         console.log(`✅ Admin ${adminUser.username} deposited ${gemsToAdd} gems to ${user.username}`);
+
+        // Alert Admin
+        sendAdminAlert(`💎 *Manual Gem Deposit*\n👤 Macmiil: ${user.username}\n💰 Cadadka: *${gemsToAdd} gems*\n👨‍💻 Approver: ${adminUser.username}`);
 
         res.json({
             success: true,

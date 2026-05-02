@@ -18,6 +18,7 @@ const Revenue = require('./models/Revenue');
 const RevenueWithdrawal = require('./models/RevenueWithdrawal');
 const Game = require('./models/Game');
 const Loan = require('./models/Loan');
+const { sendAdminAlert } = require('./telegramBot');
 const Expense = require('./models/Expense');
 const CashLog = require('./models/CashLog');
 
@@ -1001,6 +1002,9 @@ app.post('/api/buy-gems', authenticateToken, async (req, res) => {
     // -----------------------------------
     
     console.log(`✅ User ${user.username} securely purchased ${packageGems} gems for $${packagePrice.toFixed(2)}`);
+
+    // Alert Admin
+    sendAdminAlert(`💎 *Gem Purchase Alert!*\n👤 Macmiil: ${user.username}\n💰 Cadadka: *${packageGems} gems*\n💵 Lacagta: *$${packagePrice.toFixed(2)}*`);
 
     res.json({
       success: true,
@@ -3413,6 +3417,10 @@ app.post('/api/wallet/request', authenticateToken, async (req, res) => {
     });
     await newRequest.save();
 
+    // Alert Admin
+    const alertEmoji = type === 'DEPOSIT' ? '💰' : '💸';
+    sendAdminAlert(`${alertEmoji} *New ${type} Request!*\n👤 Macmiil: ${user.username}\n💵 Cadadka: *$${amount.toFixed(2)}*\n🏦 Qaabka: ${paymentMethod}`);
+
     // Verify the request was saved by fetching it back
     const savedRequest = await FinancialRequest.findById(newRequest._id);
     if (!savedRequest) {
@@ -4070,6 +4078,9 @@ const createMatch = async (player1, player2, stake) => {
     }
 
     console.log(`✅ Match notifications sent to both players`);
+
+    // Alert Admin
+    sendAdminAlert(`🎲 *Match Started!*\n👥 ${player1.userName || 'Player 1'} vs ${player2.userName || 'Player 2'}\n💰 Stake: *$${stake.toFixed(2)}*`);
 
     // Send initial game state to both players immediately (no delay)
     if (guestResult.success && guestResult.state) {
@@ -5853,6 +5864,9 @@ setInterval(async () => {
             });
 
             console.log(`🎮 Rematch started: ${newGameId}`);
+
+            // Alert Admin
+            sendAdminAlert(`⭕❌ *TTT Rematch Started!*\n👥 ${game.players[0].username} vs ${game.players[1].username}\n💰 Stake: *$${game.stake.toFixed(2)}*`);
           } else {
             socket.emit('ttt_error', { message: 'Failed to create rematch game' });
           }
