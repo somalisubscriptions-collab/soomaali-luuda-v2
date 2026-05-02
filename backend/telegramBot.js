@@ -12,22 +12,26 @@ const ADMIN_CHAT_ID = '6065559126'; // Your Admin ID
 // Initialize the bot with polling
 const bot = new TelegramBot(token, { polling: true });
 
-// Track what the user is currently doing
+// Track what the user is currently doing (waiting for their next message)
 const userState = {};
 
-// Permanent Keyboard Options for Players
-const keyboardOptions = {
+// ============================================================
+// PLAYER MENU - 4 inline buttons shown on /start
+// ============================================================
+const playerMenuOptions = {
     reply_markup: {
-        keyboard: [
-            [{ text: "💰 Lacag Dhigasho" }, { text: "💸 Lacag Labixid" }],
-            [{ text: "🆘 Caawin" }]
-        ],
-        resize_keyboard: true, // Makes buttons fit nicely on phone screens
-        is_persistent: true // Keeps the keyboard open
+        inline_keyboard: [
+            [{ text: "📝 Sidee laisku diiwaan galiyaa?", callback_data: "info_register" }],
+            [{ text: "💰 Sidee lacag loo dhigtaa?", callback_data: "info_deposit" }],
+            [{ text: "💸 Sidee lacag loola baxaa?", callback_data: "info_withdraw" }],
+            [{ text: "📨 Maamulka ii gudbi", callback_data: "contact_admin" }]
+        ]
     }
 };
 
-// Permanent Keyboard Options for Admin (Inline Buttons)
+// ============================================================
+// ADMIN MENU - inline buttons shown to admin on /start
+// ============================================================
 const adminInlineOptions = {
     reply_markup: {
         inline_keyboard: [
@@ -37,64 +41,31 @@ const adminInlineOptions = {
     }
 };
 
-// Welcome message
+// ============================================================
+// /start command
+// ============================================================
 bot.onText(/\/start/, (msg) => {
-  const chatId = msg.chat.id;
-  // If admin sends start, don't show the player menu
-  if (chatId.toString() === ADMIN_CHAT_ID) {
-      return bot.sendMessage(chatId, "👨‍💻 Welcome Admin! Waxaad halkan ka arki doontaa dhamaan fariimaha macmiisha. Si aad ugu jawaabto, kaliya 'Reply' dheh fariinta aad rabto.\n\nRiix badhamadan hoose si aad xisaabta u aragto:", adminInlineOptions);
-  }
+    const chatId = msg.chat.id;
 
-  const welcomeMessage = `
-👋 Kusoo dhawoow Somlaaduu Bot!
+    if (chatId.toString() === ADMIN_CHAT_ID) {
+        return bot.sendMessage(
+            chatId,
+            "👨‍💻 *Welcome Admin!*\n\nWaxaad halkan ka arki doontaa dhamaan fariimaha macmiisha.\nSi aad ugu jawaabto, kaliya 'Reply' dheh fariinta aad rabto.\n\n📌 Riix badhanka hoose si aad xisaabta u aragto:",
+            { parse_mode: 'Markdown', ...adminInlineOptions }
+        );
+    }
 
-Fadlan taabo mid kamid ah badhamada (buttons-ka) hoose si aad u hesho adeega aad rabto:
-  `;
-  
-  bot.sendMessage(chatId, welcomeMessage, keyboardOptions);
+    // Show player menu
+    bot.sendMessage(
+        chatId,
+        "👋 *Kusoo dhawoow Somlaaduu Bot!*\n\nFadlan dooro su'aasha aad rabto:",
+        { parse_mode: 'Markdown', ...playerMenuOptions }
+    );
 });
 
-// Handling Deposits
-const handleDeposit = (chatId) => {
-  if (chatId.toString() === ADMIN_CHAT_ID) return;
-  userState[chatId] = 'DEPOSIT 💰';
-  bot.sendMessage(chatId, 
-    "💰 *Lacag Dhigasho*\n\n" +
-    "Fadlan soo dir xogtaan:\n" +
-    "1. Numberka aad game-ka ku samaysatay\n" +
-    "2. Cadadka lacagta aad soo dirtay ($)\n" +
-    "3. Numberka aad lacagta kasoo dirtay", 
-    { parse_mode: 'Markdown', ...keyboardOptions }
-  );
-};
-bot.onText(/\/dhigasho/, (msg) => handleDeposit(msg.chat.id));
-bot.onText(/💰 Lacag Dhigasho/, (msg) => handleDeposit(msg.chat.id));
-
-// Handling Withdrawals
-const handleWithdrawal = (chatId) => {
-    if (chatId.toString() === ADMIN_CHAT_ID) return;
-    userState[chatId] = 'WITHDRAW 💸';
-    bot.sendMessage(chatId, 
-      "💸 *Lacag Labixid*\n\n" +
-      "Fadlan soo dir xogtaan:\n" +
-      "1. Numberka aad game-ka ku samaysatay\n" +
-      "2. Cadadka lacagta aad labaxaysid ($)\n" +
-      "3. Numberka EVC plus ee lacagta laguugu soo dirayo", 
-      { parse_mode: 'Markdown', ...keyboardOptions }
-    );
-};
-bot.onText(/\/labixid/, (msg) => handleWithdrawal(msg.chat.id));
-bot.onText(/💸 Lacag Labixid/, (msg) => handleWithdrawal(msg.chat.id));
-
-// Help command
-const handleHelp = (chatId) => {
-    if (chatId.toString() === ADMIN_CHAT_ID) return;
-    userState[chatId] = 'CAAWIN 🆘';
-    bot.sendMessage(chatId, "Hadii aad qabtid su'aal ama u baahantahay caawinaad, fadlan halkan ku soo qor, maamulka ayaa kuu soo jawaabi doona dhawaan.", keyboardOptions);
-};
-bot.onText(/\/caawin/, (msg) => handleHelp(msg.chat.id));
-bot.onText(/🆘 Caawin/, (msg) => handleHelp(msg.chat.id));
-
+// ============================================================
+// ANALYTICS FUNCTIONS (Admin only)
+// ============================================================
 const generateReport = async (chatId) => {
     bot.sendMessage(chatId, "⏳ Diyaarinta report-ka maanta, fadlan sug...");
 
@@ -102,24 +73,18 @@ const generateReport = async (chatId) => {
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
 
-        // Get new users today
-        const newUsers = await User.countDocuments({ createdAt: { $gte: startOfDay } });
-
-        // Get total approved deposits today
         const deposits = await FinancialRequest.aggregate([
             { $match: { type: 'DEPOSIT', status: 'APPROVED', timestamp: { $gte: startOfDay } } },
             { $group: { _id: null, total: { $sum: '$amount' } } }
         ]);
         const totalDeposits = deposits.length > 0 ? deposits[0].total : 0;
 
-        // Get total approved withdrawals today
         const withdrawals = await FinancialRequest.aggregate([
             { $match: { type: 'WITHDRAWAL', status: 'APPROVED', timestamp: { $gte: startOfDay } } },
             { $group: { _id: null, total: { $sum: '$amount' } } }
         ]);
         const totalWithdrawals = withdrawals.length > 0 ? withdrawals[0].total : 0;
 
-        // Get first-time depositors today
         const firstTimeDepositorsQuery = await FinancialRequest.aggregate([
             { $match: { type: 'DEPOSIT', status: 'APPROVED' } },
             { $group: { _id: '$userId', firstDepositDate: { $min: '$timestamp' } } },
@@ -128,17 +93,14 @@ const generateReport = async (chatId) => {
         ]);
         const newDepositorsCount = firstTimeDepositorsQuery.length > 0 ? firstTimeDepositorsQuery[0].count : 0;
 
-        // Get today's GGR (Gross Gaming Revenue from games only)
+        const newUsers = await User.countDocuments({ createdAt: { $gte: startOfDay } });
+
         const ggrQuery = await Revenue.aggregate([
             { $match: { timestamp: { $gte: startOfDay }, amount: { $gt: 0 } } },
             { $group: { _id: null, totalRevenue: { $sum: '$amount' } } }
         ]);
         const ggr = ggrQuery[0] ? ggrQuery[0].totalRevenue : 0;
 
-        // Get gem revenue directly from User transactions (most reliable source)
-        // Every gem purchase adds a transaction with type: 'gem_purchase'
-        // Admin deposits: amount = gems count, price = gems * 0.01
-        // Player purchases: description contains "for $X.XX"
         const gemTxQuery = await User.aggregate([
             { $unwind: '$transactions' },
             { $match: {
@@ -148,19 +110,10 @@ const generateReport = async (chatId) => {
                     { 'transactions.createdAt': { $gte: startOfDay } }
                 ]
             }},
-            { $project: {
-                desc: '$transactions.description',
-                gemCount: '$transactions.amount'
-            }},
-            { $group: {
-                _id: null,
-                totalGems: { $sum: '$gemCount' }
-            }}
+            { $group: { _id: null, totalGems: { $sum: '$transactions.amount' } } }
         ]);
-        // 1 gem = $0.01
         const gemRevenue = gemTxQuery[0] ? gemTxQuery[0].totalGems * 0.01 : 0;
 
-        // Get DAU (Unique active users today)
         const dauQuery = await Game.aggregate([
             { $match: { createdAt: { $gte: startOfDay }, status: { $in: ['ACTIVE', 'COMPLETED'] } } },
             { $unwind: '$players' },
@@ -170,13 +123,11 @@ const generateReport = async (chatId) => {
         ]);
         const dau = dauQuery[0] ? dauQuery[0].total : 0;
 
-        // Total Games played today
         const totalGames = await Game.countDocuments({
             createdAt: { $gte: startOfDay },
             status: { $in: ['ACTIVE', 'COMPLETED'] }
         });
 
-        // Playable Users and Balance
         const playableUsersQuery = await User.aggregate([
             { $match: { $or: [{ balance: { $gt: 0 } }, { reservedBalance: { $gt: 0 } }] } },
             { $group: { _id: null, count: { $sum: 1 }, totalBalance: { $sum: { $add: ["$balance", { $ifNull: ["$reservedBalance", 0] }] } } } }
@@ -214,11 +165,6 @@ const generateReport = async (chatId) => {
     }
 };
 
-// Map /report command to the function
-bot.onText(/\/report/, (msg) => {
-    if (msg.chat.id.toString() === ADMIN_CHAT_ID) generateReport(msg.chat.id);
-});
-
 const generateChart = async (chatId) => {
     bot.sendMessage(chatId, "🎨 Sawirida graph-ka, fadlan sug...");
 
@@ -227,35 +173,24 @@ const generateChart = async (chatId) => {
         last7Days.setDate(last7Days.getDate() - 6);
         last7Days.setHours(0, 0, 0, 0);
 
-        // Get daily sums for the last 7 days
         const data = await FinancialRequest.aggregate([
             { $match: { status: 'APPROVED', timestamp: { $gte: last7Days } } },
-            { 
-                $group: { 
-                    _id: { 
-                        date: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } },
-                        type: "$type"
-                    }, 
-                    total: { $sum: "$amount" } 
-                } 
-            }
+            { $group: { _id: { date: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } }, type: "$type" }, total: { $sum: "$amount" } } }
         ]);
 
         const dates = [];
         const depositsMap = {};
         const withdrawalsMap = {};
 
-        // Generate the last 7 day labels (MM-DD)
         for (let i = 6; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
             const dateStr = d.toISOString().split('T')[0];
-            dates.push(dateStr.slice(5)); // e.g., '05-01'
+            dates.push(dateStr.slice(5));
             depositsMap[dateStr] = 0;
             withdrawalsMap[dateStr] = 0;
         }
 
-        // Fill data
         data.forEach(item => {
             const dateStr = item._id.date;
             if (depositsMap[dateStr] !== undefined) {
@@ -273,13 +208,10 @@ const generateChart = async (chatId) => {
                     { label: 'Withdrawals ($)', data: Object.values(withdrawalsMap), backgroundColor: 'rgb(231, 76, 60)' }
                 ]
             },
-            options: {
-                title: { display: true, text: 'Lacagta la dhigtay vs Lala baxay (7 Maalmood)' }
-            }
+            options: { title: { display: true, text: 'Lacagta la dhigtay vs Lala baxay (7 Maalmood)' } }
         };
 
         const chartUrl = `https://quickchart.io/chart?width=500&height=300&c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
-        
         bot.sendPhoto(chatId, chartUrl, { caption: "📈 Graph-ka dhaqaalaha 7-dii maalmood ee lasoo dhaafay." });
 
     } catch (err) {
@@ -288,97 +220,131 @@ const generateChart = async (chatId) => {
     }
 };
 
-// Map /chart command to the function
+// Admin text commands (backup)
+bot.onText(/\/report/, (msg) => {
+    if (msg.chat.id.toString() === ADMIN_CHAT_ID) generateReport(msg.chat.id);
+});
 bot.onText(/\/chart/, (msg) => {
     if (msg.chat.id.toString() === ADMIN_CHAT_ID) generateChart(msg.chat.id);
 });
 
-// Listen for Inline Button clicks
+// ============================================================
+// CALLBACK QUERY HANDLER (handles ALL inline button clicks)
+// ============================================================
 bot.on('callback_query', async (query) => {
-    console.log("🔘 Button clicked! Data:", query.data);
-    
+    console.log("🔘 Button clicked:", query.data, "by:", query.from.id);
+
     try {
         const chatId = query.message.chat.id;
         const data = query.data;
 
-        // Only Admin can click these
-        if (chatId.toString() !== ADMIN_CHAT_ID) {
-            console.log("❌ Unauthorized button click from:", chatId);
+        // Acknowledge the button press immediately (removes loading spinner)
+        await bot.answerCallbackQuery(query.id).catch(e => console.error("answerCallbackQuery error:", e));
+
+        // ---- ADMIN BUTTONS ----
+        if (chatId.toString() === ADMIN_CHAT_ID) {
+            if (data === 'cmd_report') return generateReport(chatId);
+            if (data === 'cmd_chart')  return generateChart(chatId);
             return;
         }
 
-        await bot.answerCallbackQuery(query.id).catch(e => console.error("Error answering query:", e));
+        // ---- PLAYER BUTTONS ----
+        const username = query.from.username ? `@${query.from.username}` : query.from.first_name;
 
-        if (data === 'cmd_report') {
-            console.log("📊 Triggering generateReport...");
-            await generateReport(chatId);
-        } else if (data === 'cmd_chart') {
-            console.log("📈 Triggering generateChart...");
-            await generateChart(chatId);
+        if (data === 'info_register') {
+            bot.sendMessage(chatId,
+                "📝 *Sidee laisku diiwaan galiyaa?*\n\n" +
+                "1️⃣ Fur boggayaga: *somlaanduu.com*\n" +
+                "2️⃣ Guji badhanka *'Diiwaangeli'*\n" +
+                "3️⃣ Buuxi magacaaga, email, iyo password\n" +
+                "4️⃣ Guji *'Abuur Xisaab'* — waa dhamaaday! ✅\n\n" +
+                "Hadii aad wax kale u baahantahay, nala soo xiriir.",
+                { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "⬅️ Ku noqo", callback_data: "back_menu" }]] } }
+            );
+
+        } else if (data === 'info_deposit') {
+            bot.sendMessage(chatId,
+                "💰 *Sidee lacag loo dhigtaa?*\n\n" +
+                "1️⃣ Fur boggayaga oo gal xisaabta\n" +
+                "2️⃣ Guji *'Dhig Lacag'*\n" +
+                "3️⃣ Dir lacagta EVC Plus numberka:\n" +
+                "    📱 *+252 63 XXX XXXX*\n" +
+                "4️⃣ Noo soo dir screenshots-ka ama nambarka confirmation-ka\n" +
+                "5️⃣ Maamulka wuxuu xaqiijin doonaa si dhakhso ah ✅",
+                { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "⬅️ Ku noqo", callback_data: "back_menu" }]] } }
+            );
+
+        } else if (data === 'info_withdraw') {
+            bot.sendMessage(chatId,
+                "💸 *Sidee lacag loola baxaa?*\n\n" +
+                "1️⃣ Fur boggayaga oo gal xisaabta\n" +
+                "2️⃣ Guji *'Lacag Bixid'*\n" +
+                "3️⃣ Geli cadadka lacagta iyo EVC Plus numberkaaga\n" +
+                "4️⃣ Codsigaaga waxaa u diri maamulka\n" +
+                "5️⃣ Lacagtu waxay ku soo gaari doontaa 5-15 daqiiqo gudahood 💸",
+                { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "⬅️ Ku noqo", callback_data: "back_menu" }]] } }
+            );
+
+        } else if (data === 'contact_admin') {
+            // Put user in "contact admin" state so next message is forwarded
+            userState[chatId] = 'CONTACT_ADMIN';
+            bot.sendMessage(chatId,
+                "📨 *Maamulka ii gudbi*\n\n" +
+                "Qor fariintaada hoose — maamulku wuxuu kugu soo jawaabi doonaa si dhakhso ah.\n\n" +
+                "✍️ Fariintaada qor hoos:",
+                { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "❌ Jooji", callback_data: "back_menu" }]] } }
+            );
+
+        } else if (data === 'back_menu') {
+            // Show the main menu again
+            bot.sendMessage(chatId,
+                "👋 *Waxaad dooran kartaa mid kale:*",
+                { parse_mode: 'Markdown', ...playerMenuOptions }
+            );
         }
+
     } catch (err) {
         console.error("❌ Error in callback_query:", err);
     }
 });
 
-// Listen to all messages
+// ============================================================
+// MESSAGE HANDLER (forwarding to admin, and admin replies)
+// ============================================================
 bot.on('message', async (msg) => {
-  const chatId = msg.chat.id;
-  const text = msg.text;
-  
-  // Ignore missing text or commands
-  if (!text || text.startsWith('/')) return;
+    const chatId = msg.chat.id;
+    const text = msg.text;
 
-  // ==========================================
-  // ADMIN REPLY LOGIC
-  // ==========================================
-  if (chatId.toString() === ADMIN_CHAT_ID) {
-      // Check if Admin is replying to a specific message
-      if (msg.reply_to_message && msg.reply_to_message.text) {
-          const repliedText = msg.reply_to_message.text;
-          
-          // Extract the player's Chat ID from the text
-          const idMatch = repliedText.match(/ID: (\d+)/);
-          
-          if (idMatch && idMatch[1]) {
-              const playerId = idMatch[1];
-              
-              // Send the admin's reply back to the player directly as text
-              bot.sendMessage(playerId, text);
-              
-              // Confirm to admin that it was sent
-              bot.sendMessage(ADMIN_CHAT_ID, "✅ Jawaabtaada waa loo diray macmiilka!");
-              return;
-          }
-      }
-      
-      // If admin just types normally without replying, ignore it
-      return; 
-  }
-  
-  // ==========================================
-  // PLAYER MESSAGE LOGIC
-  // ==========================================
-  const username = msg.from.username ? `@${msg.from.username}` : msg.from.first_name;
+    if (!text || text.startsWith('/')) return;
 
-  // Don't forward the button clicks themselves to the admin
-  if (text === "💰 Lacag Dhigasho" || text === "💸 Lacag Labixid" || text === "🆘 Caawin") return;
+    // ---- ADMIN REPLY LOGIC ----
+    if (chatId.toString() === ADMIN_CHAT_ID) {
+        if (msg.reply_to_message && msg.reply_to_message.text) {
+            const repliedText = msg.reply_to_message.text;
+            const idMatch = repliedText.match(/ID: (\d+)/);
+            if (idMatch && idMatch[1]) {
+                const playerId = idMatch[1];
+                bot.sendMessage(playerId, `📬 *Jawaabta Maamulka:*\n\n${text}`, { parse_mode: 'Markdown' });
+                bot.sendMessage(ADMIN_CHAT_ID, "✅ Jawaabtaada waa loo diray macmiilka!");
+                return;
+            }
+        }
+        return; // Ignore all other admin messages
+    }
 
-  if (text.length > 2) {
-     bot.sendMessage(chatId, "✅ Daqiiqado kadib walagu so jawabaya walal", keyboardOptions);
-     
-     const actionType = userState[chatId] || 'FARIIN CAADI AH 📩';
-     
-     // IMPORTANT: We inject 'ID: xxxxx' so the Admin can reply to it later
-     const adminMessage = `🚨 *Codsiga Cusub!* (${actionType})\n👤 Macmiil: ${username}\n🆔 ID: ${chatId}\n\n💬 Fariinta:\n"${text}"`;
-     
-     // Send to Admin
-     bot.sendMessage(ADMIN_CHAT_ID, adminMessage);
-     
-     delete userState[chatId];
-  }
+    // ---- PLAYER MESSAGE (forwarding to admin) ----
+    if (userState[chatId] === 'CONTACT_ADMIN') {
+        const username = msg.from.username ? `@${msg.from.username}` : msg.from.first_name;
+        const adminMessage = `🚨 *Fariinta Cusub!*\n👤 Macmiil: ${username}\n🆔 ID: ${chatId}\n\n💬 Fariinta:\n"${text}"`;
+        bot.sendMessage(ADMIN_CHAT_ID, adminMessage, { parse_mode: 'Markdown' });
+        bot.sendMessage(chatId,
+            "✅ *Fariintaada waa la diray maamulka!*\n\nWaxaan kugu soo jawaabi doonaa dhawaan.",
+            { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "⬅️ Ku noqo menu-ga", callback_data: "back_menu" }]] } }
+        );
+        delete userState[chatId];
+    }
 });
 
-console.log("🤖 Telegram Bot initialized with Reply feature...");
+console.log("🤖 Telegram Bot initialized with 4-option player menu...");
 
 module.exports = bot;
