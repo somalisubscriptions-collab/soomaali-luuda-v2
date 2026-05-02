@@ -122,6 +122,14 @@ bot.onText(/\/start/, (msg) => {
 });
 
 // ============================================================
+// /ping command (for testing)
+// ============================================================
+bot.onText(/\/ping/, (msg) => {
+    bot.sendMessage(msg.chat.id, "🏓 Pong! Bot is alive and running the latest code!");
+});
+
+
+// ============================================================
 // ANALYTICS FUNCTIONS (Admin only)
 // ============================================================
 const generateReport = async (chatId) => {
@@ -398,10 +406,10 @@ bot.on('message', async (msg) => {
                 const playerId = idMatch[1];
                 bot.sendMessage(playerId, `📬 *Jawaabta Maamulka:*\n\n${text}`, { parse_mode: 'Markdown' });
                 bot.sendMessage(ADMIN_CHAT_ID, "✅ Jawaabtaada waa loo diray macmiilka!");
-                return;
+                return; // Stop here — admin sent a reply to a player
             }
         }
-        return; // Ignore all other admin messages
+        // Admin is NOT replying to a player — let them fall through to Gemini (for testing)
     }
 
     // ---- PLAYER MESSAGE (forwarding to admin if in contact state) ----
@@ -418,6 +426,7 @@ bot.on('message', async (msg) => {
     }
 
     // ---- GEMINI AI AUTO-REPLY for all other player messages ----
+    console.log(`🤖 Gemini: Received message from ${chatId}: "${text}"`);
     try {
         // Show typing indicator
         bot.sendChatAction(chatId, 'typing');
@@ -426,8 +435,10 @@ bot.on('message', async (msg) => {
         const result = await chat.sendMessage(text);
         const aiReply = result.response.text();
 
+        console.log(`✅ Gemini replied: "${aiReply.substring(0, 80)}..."`);
+
+        // NOTE: No parse_mode here — Gemini text can break Telegram Markdown
         bot.sendMessage(chatId, aiReply, {
-            parse_mode: 'Markdown',
             reply_markup: {
                 inline_keyboard: [
                     [{ text: "📲 Maamulka la xiriir", callback_data: "contact_admin" }],
@@ -436,14 +447,14 @@ bot.on('message', async (msg) => {
             }
         });
     } catch (aiErr) {
-        console.error('Gemini error:', aiErr.message);
+        console.error('❌ Gemini error:', aiErr.message);
         // Fallback: forward to admin if AI fails
         const username = msg.from.username ? `@${msg.from.username}` : msg.from.first_name;
         const adminMessage = `🚨 *Fariinta Cusub!*\n👤 Macmiil: ${username}\n🆔 ID: ${chatId}\n\n💬 Fariinta:\n"${text}"`;
         bot.sendMessage(ADMIN_CHAT_ID, adminMessage, { parse_mode: 'Markdown' });
         bot.sendMessage(chatId,
             "✅ Fariintaada waa la diray maamulka. Waxaan kugu soo jawaabi doonaa dhawaan!",
-            { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "⬅️ Menu-ga", callback_data: "back_menu" }]] } }
+            { reply_markup: { inline_keyboard: [[{ text: "⬅️ Menu-ga", callback_data: "back_menu" }]] } }
         );
     }
 });
