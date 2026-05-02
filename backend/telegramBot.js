@@ -10,47 +10,25 @@ const Revenue = require('./models/Revenue');
 // GEMINI AI SETUP
 // ============================================================
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'AIzaSyA0FepDN9tG9kuBiQ749RU2v1tb3m5teFA');
-const geminiModel = genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash-latest',
-    systemInstruction: `
+const geminiModel = genAI.getGenerativeModel({ model: 'gemini-pro' });
+
+// We define the system prompt here instead to use in chat history
+const botInstructions = `
 Adigu waxaad tahay Assistant-ka taageerada macaamiisha ee laandhuu.online.
-Magacaagu waa Laandhuu Bot.
-Kulligeey ku jawaab Af-Soomaali oo kaliya.
+Magacaagu waa Laandhuu Bot. Kulligeey ku jawaab Af-Soomaali oo kaliya.
 
 Xogta muhiimka ah:
 - Laandhuu.online waa platform Ludo game ah oo online ah
-- Ciyaaraha waxaa lagu ciyaaraa lacag ($) gaar ah oo kaga tartantaan ciyaaryahanka kale
 - Qofka ku guulaysta wuxuu helaa lacagta labada ciyaaraha iyo ta maamulka
 
-Sidee loo diwaangaliyaa:
-1. Tag laandhuu.online
-2. Taabo 'Continue with Email'
-3. Dooro emailkaaga
-4. Geli telefon numberkaaga
+Sidee loo diwaangaliyaa: Tag laandhuu.online -> Continue with Email -> Dooro email -> Geli number.
+Sidee lacag loo dhigtaa: Tag laandhuu.online -> Dhig Lacag -> Dir EVC Plus -> Soo dir confirmation.
+Sidee lacag loola baxaa: Tag laandhuu.online -> Lacag Bixid -> Geli cadadka iyo EVC -> Sug 5-15 daqiiqo.
 
-Sidee lacag loo dhigtaa:
-1. Tag laandhuu.online oo gal xisaabta
-2. Guji 'Dhig Lacag'
-3. Dir lacagta EVC Plus
-4. Soo dir screenshot-ka ama confirmation number-ka
-5. Maamulku wuxuu xaqiijin doonaa dhawaan
-
-Sidee lacag loola baxaa:
-1. Tag laandhuu.online oo gal xisaabta
-2. Guji 'Lacag Bixid'
-3. Geli cadadka lacagta iyo EVC numberkaaga
-4. Codsigaagu wuxuu u socon doonaa maamulka
-5. Lacagtu waxay ku soo gaari doontaa 5-15 daqiiqo
-
-Haddii macaamilku leeyahay arrin adag oo ku saabsan:
-- Xisaabtiisa gaar ah
-- Lacag la waayay oo la soo diri waayay
-- Cillad aan aad u fahmayno
+Haddii macaamilku leeyahay arrin adag (sida lacag la waayay):
 Ku sheeg inuu xiriiro maamulka adoo isticmaalaya badhanka "📨 Maamulka ii gudbi".
-
-Jawaabahaaga ha ahaadaan: kooban, caddaan, saaxiibtinimo leh, Af-Soomaali ah.
-    `
-});
+Jawaabahaaga ha ahaadaan kooban, caddaan, iyo Af-Soomaali ah.
+`;
 
 // Your Telegram Bot Token
 const token = '6029379159:AAFlQDHODbeCMepl5_Q_Xp26Uv0aCQkwG2o';
@@ -431,7 +409,12 @@ bot.on('message', async (msg) => {
         // Show typing indicator
         bot.sendChatAction(chatId, 'typing');
 
-        const chat = geminiModel.startChat();
+        const chat = geminiModel.startChat({
+            history: [
+                { role: "user", parts: [{ text: botInstructions }] },
+                { role: "model", parts: [{ text: "Waan fahmay. Waan ku caawinayaa macaamiisha Af-Soomaali." }] }
+            ]
+        });
         const result = await chat.sendMessage(text);
         const aiReply = result.response.text();
 
