@@ -1,9 +1,56 @@
 const TelegramBot = require('node-telegram-bot-api');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const User = require('./models/User'); 
 const CashLog = require('./models/CashLog');
 const FinancialRequest = require('./models/FinancialRequest');
 const Game = require('./models/Game');
 const Revenue = require('./models/Revenue');
+
+// ============================================================
+// GEMINI AI SETUP
+// ============================================================
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'AIzaSyA0FepDN9tG9kuBiQ749RU2v1tb3m5teFA');
+const geminiModel = genAI.getGenerativeModel({
+    model: 'gemini-1.5-flash',
+    systemInstruction: `
+Adigu waxaad tahay Assistant-ka taageerada macaamiisha ee laandhuu.online.
+Magacaagu waa Laandhuu Bot.
+Kulligeey ku jawaab Af-Soomaali oo kaliya.
+
+Xogta muhiimka ah:
+- Laandhuu.online waa platform Ludo game ah oo online ah
+- Ciyaaraha waxaa lagu ciyaaraa lacag ($) gaar ah oo kaga tartantaan ciyaaryahanka kale
+- Qofka ku guulaysta wuxuu helaa lacagta labada ciyaaraha iyo ta maamulka
+
+Sidee loo diwaangaliyaa:
+1. Tag laandhuu.online
+2. Taabo 'Continue with Email'
+3. Dooro emailkaaga
+4. Geli telefon numberkaaga
+
+Sidee lacag loo dhigtaa:
+1. Tag laandhuu.online oo gal xisaabta
+2. Guji 'Dhig Lacag'
+3. Dir lacagta EVC Plus
+4. Soo dir screenshot-ka ama confirmation number-ka
+5. Maamulku wuxuu xaqiijin doonaa dhawaan
+
+Sidee lacag loola baxaa:
+1. Tag laandhuu.online oo gal xisaabta
+2. Guji 'Lacag Bixid'
+3. Geli cadadka lacagta iyo EVC numberkaaga
+4. Codsigaagu wuxuu u socon doonaa maamulka
+5. Lacagtu waxay ku soo gaari doontaa 5-15 daqiiqo
+
+Haddii macaamilku leeyahay arrin adag oo ku saabsan:
+- Xisaabtiisa gaar ah
+- Lacag la waayay oo la soo diri waayay
+- Cillad aan aad u fahmayno
+Ku sheeg inuu xiriiro maamulka adoo isticmaalaya badhanka "📨 Maamulka ii gudbi".
+
+Jawaabahaaga ha ahaadaan: kooban, caddaan, saaxiibtinimo leh, Af-Soomaali ah.
+    `
+});
 
 // Your Telegram Bot Token
 const token = '6029379159:AAFlQDHODbeCMepl5_Q_Xp26Uv0aCQkwG2o';
@@ -357,7 +404,7 @@ bot.on('message', async (msg) => {
         return; // Ignore all other admin messages
     }
 
-    // ---- PLAYER MESSAGE (forwarding to admin) ----
+    // ---- PLAYER MESSAGE (forwarding to admin if in contact state) ----
     if (userState[chatId] === 'CONTACT_ADMIN') {
         const username = msg.from.username ? `@${msg.from.username}` : msg.from.first_name;
         const adminMessage = `🚨 *Fariinta Cusub!*\n👤 Macmiil: ${username}\n🆔 ID: ${chatId}\n\n💬 Fariinta:\n"${text}"`;
@@ -367,6 +414,37 @@ bot.on('message', async (msg) => {
             { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "⬅️ Ku noqo menu-ga", callback_data: "back_menu" }]] } }
         );
         delete userState[chatId];
+        return;
+    }
+
+    // ---- GEMINI AI AUTO-REPLY for all other player messages ----
+    try {
+        // Show typing indicator
+        bot.sendChatAction(chatId, 'typing');
+
+        const chat = geminiModel.startChat();
+        const result = await chat.sendMessage(text);
+        const aiReply = result.response.text();
+
+        bot.sendMessage(chatId, aiReply, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: "📲 Maamulka la xiriir", callback_data: "contact_admin" }],
+                    [{ text: "⬅️ Menu-ga", callback_data: "back_menu" }]
+                ]
+            }
+        });
+    } catch (aiErr) {
+        console.error('Gemini error:', aiErr.message);
+        // Fallback: forward to admin if AI fails
+        const username = msg.from.username ? `@${msg.from.username}` : msg.from.first_name;
+        const adminMessage = `🚨 *Fariinta Cusub!*\n👤 Macmiil: ${username}\n🆔 ID: ${chatId}\n\n💬 Fariinta:\n"${text}"`;
+        bot.sendMessage(ADMIN_CHAT_ID, adminMessage, { parse_mode: 'Markdown' });
+        bot.sendMessage(chatId,
+            "✅ Fariintaada waa la diray maamulka. Waxaan kugu soo jawaabi doonaa dhawaan!",
+            { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "⬅️ Menu-ga", callback_data: "back_menu" }]] } }
+        );
     }
 });
 
