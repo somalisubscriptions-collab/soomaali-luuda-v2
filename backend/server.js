@@ -18,7 +18,7 @@ const Revenue = require('./models/Revenue');
 const RevenueWithdrawal = require('./models/RevenueWithdrawal');
 const Game = require('./models/Game');
 const Loan = require('./models/Loan');
-const { sendAdminAlert } = require('./telegramBot');
+const { sendAdminAlert } = require('./adminAlert');
 const Expense = require('./models/Expense');
 const CashLog = require('./models/CashLog');
 
@@ -3419,6 +3419,7 @@ app.post('/api/wallet/request', authenticateToken, async (req, res) => {
 
     // Alert Admin
     const alertEmoji = type === 'DEPOSIT' ? '💰' : '💸';
+    console.log(`📢 Triggering Telegram alert for ${type} request...`);
     sendAdminAlert(`${alertEmoji} *New ${type} Request!*\n👤 Macmiil: ${user.username}\n💵 Cadadka: *$${amount.toFixed(2)}*\n🏦 Qaabka: ${paymentMethod}`);
 
     // Verify the request was saved by fetching it back

@@ -374,8 +374,13 @@ bot.on('message', async (msg) => {
  * Helper to send real-time alerts to the Admin
  */
 const sendAdminAlert = (message) => {
-    if (!ADMIN_CHAT_ID) return;
+    if (!ADMIN_CHAT_ID) {
+        console.log("⚠️ No ADMIN_CHAT_ID defined for alerts.");
+        return;
+    }
+    console.log("📢 Attempting to send Admin Alert...");
     bot.sendMessage(ADMIN_CHAT_ID, message, { parse_mode: 'Markdown' })
+       .then(() => console.log("✅ Admin Alert sent successfully."))
        .catch(err => console.error("❌ Failed to send admin alert:", err.message));
 };
 
