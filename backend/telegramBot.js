@@ -11,7 +11,7 @@ const Revenue = require('./models/Revenue');
 // ============================================================
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'AIzaSyA0FepDN9tG9kuBiQ749RU2v1tb3m5teFA');
 const geminiModel = genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash',
+    model: 'gemini-1.5-flash-latest',
     systemInstruction: `
 Adigu waxaad tahay Assistant-ka taageerada macaamiisha ee laandhuu.online.
 Magacaagu waa Laandhuu Bot.
