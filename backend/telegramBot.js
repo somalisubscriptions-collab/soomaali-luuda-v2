@@ -254,11 +254,10 @@ bot.on('callback_query', async (query) => {
         if (data === 'info_register') {
             bot.sendMessage(chatId,
                 "📝 *Sidee laisku diiwaan galiyaa?*\n\n" +
-                "1️⃣ Fur boggayaga: *somlaanduu.com*\n" +
-                "2️⃣ Guji badhanka *'Diiwaangeli'*\n" +
-                "3️⃣ Buuxi magacaaga, email, iyo password\n" +
-                "4️⃣ Guji *'Abuur Xisaab'* — waa dhamaaday! ✅\n\n" +
-                "Hadii aad wax kale u baahantahay, nala soo xiriir.",
+                "1️⃣ Ku dhufo gameka 👉 *laandhuu.online*\n\n" +
+                "2️⃣ Taabo *\"Continue with Email\"* kadib dooro emailka aad rabto\n\n" +
+                "3️⃣ Gali telefon numberka lacagta lagugu soo diri doono\n\n" +
+                "4️⃣ Sidaas ayaad isu diiwaan gelisay ✅",
                 { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: "⬅️ Ku noqo", callback_data: "back_menu" }]] } }
             );
 
