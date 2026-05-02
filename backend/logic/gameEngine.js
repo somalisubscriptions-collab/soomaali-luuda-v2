@@ -46,6 +46,7 @@ const Revenue = require('../models/Revenue');
 const Loan = require('../models/Loan');
 const crypto = require('crypto');
 const aiAgent = require('./aiAgent');
+const { sendAdminAlert } = require('../adminAlert');
 
 // --- Auto Loan Settlement ---
 // Called after every game end (win OR loss).
@@ -557,6 +558,15 @@ const processGameSettlement = async (gameObj) => {
 
         console.log(`\n✅ SETTLEMENT COMPLETE FOR GAME ${game.gameId}`);
         console.log(`${'='.repeat(80)}\n`);
+
+        // 🔔 Notify Admin
+        const loserUsername = loser ? loser.username : 'Unknown';
+        sendAdminAlert(
+            `🎮 *Match Ended!*\n` +
+            `🏆 Winner: *${winner.username}* (+$${profit.toFixed(2)})\n` +
+            `💔 Loser: ${loserUsername} (-$${stake.toFixed(2)})\n` +
+            `💰 Stake: $${stake.toFixed(2)} | Rake: $${commission.toFixed(2)}`
+        );
 
         // Return settlement data for win notification
         return {
