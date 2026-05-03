@@ -48,6 +48,7 @@ const Wallet: React.FC<WalletProps> = ({ user, onClose, onUpdateUser }) => {
     const [userLoading, setUserLoading] = useState(true);
     const [showSuccessMessage, setShowSuccessMessage] = useState(false);
     const [bannerMessage, setBannerMessage] = useState<string | null>(null);
+    const [showTutorial, setShowTutorial] = useState(false);
     const SOMALI_PENDING_MSG = `Waanka xunnahay Nun horey ayaad dalab u gudbisay, dalabkii hore oo aan la xaqiijinna mid kale ma gudbin kartid,  fadlan la xariir whatsapp 0610251014 si laguugu xaqiijiyo mahadsanid`;
 
     // Payment method state
@@ -370,32 +371,57 @@ const Wallet: React.FC<WalletProps> = ({ user, onClose, onUpdateUser }) => {
                                 EVC · eDahab · ZAAD · SAHAL — Lacagta isla markiiba ku soo gashaa
                             </p>
 
+                            {/* Tutorial Button */}
+                            <button
+                                onClick={() => setShowTutorial(true)}
+                                className="w-full mt-3 flex items-center justify-center gap-2 bg-slate-800 border border-slate-700 text-slate-300 font-bold py-3 px-4 rounded-xl hover:bg-slate-700 hover:text-white transition-colors"
+                            >
+                                <span className="text-xl">📺</span>
+                                Sidee lacag loo dhigtaa? (Daawo Video)
+                            </button>
+
                             {/* Divider */}
-                            <div className="flex items-center gap-3 my-1">
+                            <div className="flex items-center gap-3 my-6">
                                 <div className="flex-1 h-px bg-slate-700" />
-                                <span className="text-[10px] text-slate-500 uppercase">ama codsii manually</span>
+                                <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Ama Xiriir Telegram</span>
                                 <div className="flex-1 h-px bg-slate-700" />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <button
-                                    onClick={() => handleRequest('DEPOSIT')}
-                                    disabled={loading}
-                                    className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg transition-transform transform active:scale-95 disabled:opacity-50 shadow-lg"
+                            {/* ── TELEGRAM SUPPORT BANNER ── */}
+                            <div className="bg-gradient-to-br from-[#0088cc]/20 to-slate-900 border border-[#0088cc]/30 rounded-xl p-5 text-center shadow-lg relative overflow-hidden">
+                                {/* Decorative background element */}
+                                <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#0088cc]/10 rounded-full blur-2xl"></div>
+                                
+                                <div className="w-14 h-14 bg-[#0088cc]/20 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner border border-[#0088cc]/30">
+                                    <svg className="w-7 h-7 text-[#0088cc]" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                                    </svg>
+                                </div>
+                                
+                                <h4 className="text-white font-black text-lg mb-1 tracking-wide">🏦 Xafiiska Xisaabaadka</h4>
+                                <p className="text-xs text-slate-300 mb-5 leading-relaxed px-2">
+                                    Fadlan haddii aad dooneyso in lagugu shubo balance-ka ama aad rabto in laguu diro faa'idadaada, kala xiriir maamulka.
+                                </p>
+                                
+                                <a 
+                                    href="https://t.me/Somlaandhuu" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="relative flex items-center justify-center w-full bg-gradient-to-r from-[#0088cc] to-[#00a2ff] hover:from-[#0077b5] hover:to-[#0088cc] text-white font-bold py-3.5 px-4 rounded-lg transition-all transform hover:scale-[1.02] active:scale-95 shadow-lg shadow-[#0088cc]/30"
                                 >
-                                    {loading ? '...' : '📋 Codso Deposit'}
-                                </button>
-                                <button
-                                    onClick={() => handleRequest('WITHDRAWAL')}
-                                    disabled={loading}
-                                    className="bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg transition-transform transform active:scale-95 disabled:opacity-50 shadow-lg shadow-red-900/20"
-                                >
-                                    {loading ? '...' : 'Lacag-Labixid'}
-                                </button>
-                            </div>
-                            <div className="text-xs text-slate-500 text-center leading-relaxed border-t border-slate-700 pt-4">
-                                <p>Submit a request to Lacag-Dhigasho ama Lacag-Labixid.</p>
-                                <p>Admin will review and approve shortly.</p>
+                                    <span className="text-lg mr-2">✈️</span>
+                                    <span>La Xiriir @Somlaandhuu</span>
+                                    <div className="absolute right-4 animate-pulse">
+                                        <svg className="w-5 h-5 text-white/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                        </svg>
+                                    </div>
+                                </a>
+                                
+                                <div className="mt-3 flex items-center justify-center gap-1.5">
+                                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                    <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Jawaabtu waa 2 daqiiqo gudahood</p>
+                                </div>
                             </div>
                         </div>
                     ) : (
@@ -492,6 +518,33 @@ const Wallet: React.FC<WalletProps> = ({ user, onClose, onUpdateUser }) => {
                     )}
                 </div>
             </div>
+
+            {/* ── TUTORIAL MODAL ── */}
+            {showTutorial && (
+                <div className="fixed inset-0 bg-black/85 z-[9999] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-md bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-700">
+                        <div className="p-4 flex justify-between items-center border-b border-slate-800">
+                            <h3 className="m-0 text-white text-base font-bold">Sidee Lacag Loo Dhigtaa</h3>
+                            <button onClick={() => setShowTutorial(false)} className="bg-transparent border-none text-slate-400 text-2xl cursor-pointer leading-none hover:text-white">&times;</button>
+                        </div>
+                        <div className="relative pb-[56.25%] h-0 bg-black">
+                            <iframe 
+                                className="absolute top-0 left-0 w-full h-full"
+                                src="https://www.youtube.com/embed/oHg5SJYRHA0"
+                                title="Tutorial Video"
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                            ></iframe>
+                        </div>
+                        <div className="p-4 text-center">
+                            <p className="text-slate-400 text-sm m-0">
+                                Halkan waxaad ka baran kartaa sida ugu sahlan ee lacagta loo dhigto.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

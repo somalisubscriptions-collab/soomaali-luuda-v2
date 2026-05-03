@@ -15,6 +15,7 @@ const Register: React.FC<RegisterProps> = ({ onSuccess, onSwitchToLogin }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const { register } = useAuth();
 
   // Check for referral code in URL on mount
@@ -81,9 +82,33 @@ const Register: React.FC<RegisterProps> = ({ onSuccess, onSwitchToLogin }) => {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
-        <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">
+        <h2 className="text-3xl font-bold text-gray-900 mb-2 text-center">
           Create Account
         </h2>
+
+        {/* Supported Payments Display */}
+        <div className="text-center mb-6">
+          <p className="text-gray-400 text-[10px] uppercase tracking-widest font-bold mb-3">
+            Qaababka Lacag-bixinta
+          </p>
+          <div className="flex justify-center gap-3 flex-wrap items-center">
+            <img src="/icons/evc.png" alt="EVC Plus" title="EVC Plus" className="h-9 w-9 rounded-[8px] bg-white p-[3px] object-contain shadow-sm border border-gray-100" />
+            <img src="/icons/edahab.png" alt="eDahab" title="eDahab" className="h-9 w-9 rounded-[8px] bg-white p-[3px] object-contain shadow-sm border border-gray-100" />
+            <img src="/icons/salaam.png" alt="Salaam Bank" title="Salaam Bank" className="h-9 w-9 rounded-[8px] bg-white p-[3px] object-contain shadow-sm border border-gray-100" />
+            <img src="/icons/premier.png" alt="Premier Bank" title="Premier Bank" className="h-9 w-9 rounded-[8px] bg-white p-[3px] object-contain shadow-sm border border-gray-100" />
+            <img src="/icons/golis.png" alt="Golis" title="Golis" className="h-9 w-9 rounded-[8px] bg-white p-[3px] object-contain shadow-sm border border-gray-100" />
+          </div>
+        </div>
+
+        {/* Tutorial Button */}
+        <button
+          type="button"
+          onClick={() => setShowTutorial(true)}
+          className="w-full flex items-center justify-center gap-2 bg-cyan-50 border border-cyan-100 text-cyan-800 font-bold py-3 px-4 rounded-xl mb-6 hover:bg-cyan-100 transition-colors"
+        >
+          <span className="text-xl">📺</span>
+          Daawo Sida Loo Ciyaaro
+        </button>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -186,6 +211,70 @@ const Register: React.FC<RegisterProps> = ({ onSuccess, onSwitchToLogin }) => {
           </button>
         </div>
       </div>
+
+      {/* ── FLOATING TELEGRAM SUPPORT BUTTON ── */}
+      <a 
+        href="https://t.me/Somlaandhuu" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          background: 'linear-gradient(135deg, #0088cc 0%, #00a2ff 100%)',
+          color: 'white',
+          padding: '12px 20px',
+          borderRadius: '30px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          boxShadow: '0 8px 25px rgba(0, 136, 204, 0.4)',
+          textDecoration: 'none',
+          fontWeight: 700,
+          fontSize: '14px',
+          zIndex: 1000,
+          transition: 'transform 0.2s ease',
+        }}
+        onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
+        onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+      >
+        <video 
+          src="/icons/customer-service.mp4" 
+          autoPlay 
+          loop 
+          muted 
+          playsInline
+          style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '50%', flexShrink: 0, marginLeft: '-4px', mixBlendMode: 'multiply' }} 
+        />
+        <span style={{ letterSpacing: '0.02em' }}>Caawinaad?</span>
+      </a>
+
+      {/* ── TUTORIAL MODAL ── */}
+      {showTutorial && (
+        <div className="fixed inset-0 bg-black/85 z-[9999] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-2xl overflow-hidden shadow-2xl">
+            <div className="p-4 flex justify-between items-center border-b border-gray-100">
+              <h3 className="m-0 text-gray-900 text-base font-bold">Sida Loo Sameeyo</h3>
+              <button onClick={() => setShowTutorial(false)} className="bg-transparent border-none text-gray-400 text-2xl cursor-pointer leading-none hover:text-gray-600">&times;</button>
+            </div>
+            <div className="relative pb-[56.25%] h-0 bg-black">
+              <iframe 
+                className="absolute top-0 left-0 w-full h-full"
+                src="https://www.youtube.com/embed/oHg5SJYRHA0"
+                title="Tutorial Video"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            </div>
+            <div className="p-4 text-center">
+              <p className="text-gray-500 text-sm m-0">
+                Halkan waxaad ka baran kartaa sida loo ciyaaro iyo sida loo diiwaangaliyo.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -66,6 +66,20 @@ const playerMenuOptions = {
 };
 
 // ============================================================
+// FB AD WELCOME MENU - CTA buttons for users from Facebook
+// ============================================================
+const fbAdWelcomeOptions = {
+    reply_markup: {
+        inline_keyboard: [
+            [{ text: "🎮 Bilow Ciyaarta Hadda!", url: "https://www.laadhuu.online/" }],
+            [{ text: "📝 Sidee laisku diiwaan galiyaa?", callback_data: "info_register" }],
+            [{ text: "💰 Sidee lacag loo dhigtaa?", callback_data: "info_deposit" }],
+            [{ text: "📨 Su'aal ii weydii", callback_data: "contact_admin" }]
+        ]
+    }
+};
+
+// ============================================================
 // ADMIN MENU - inline buttons shown to admin on /start
 // ============================================================
 const adminInlineOptions = {
@@ -78,10 +92,11 @@ const adminInlineOptions = {
 };
 
 // ============================================================
-// /start command
+// /start command  (supports deep links e.g. /start fb_ad)
 // ============================================================
-bot.onText(/\/start/, (msg) => {
+bot.onText(/\/start(?:\s+(\S+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
+    const param  = match[1] || ''; // e.g. 'fb_ad'
 
     if (chatId.toString() === ADMIN_CHAT_ID) {
         return bot.sendMessage(
@@ -91,10 +106,38 @@ bot.onText(/\/start/, (msg) => {
         );
     }
 
-    // Show player menu
+    // ---- USER CAME FROM A FACEBOOK AD ----
+    if (param === 'fb_ad') {
+        // Notify admin silently so you can track conversions
+        const username = msg.from.username ? `@${msg.from.username}` : msg.from.first_name;
+        bot.sendMessage(
+            ADMIN_CHAT_ID,
+            `📣 *Facebook Ad Conversion!*\n👤 ${username}\n🆔 ID: ${chatId}\n⏰ ${new Date().toLocaleString()}`,
+            { parse_mode: 'Markdown' }
+        );
+
+        // High-converting welcome for ad traffic
+        return bot.sendMessage(
+            chatId,
+            "🎉 *Aad ayaad ugu timid!*\n\n" +
+            "🏆 *Laandhuu — Play Ludo. Ku Guul. Lacag Qaado!*\n\n" +
+            "✅ Ciyaarta online ah ee ugu weyn Soomaalida\n" +
+            "✅ Lacag dhabta ah ayaad ku guuleysataa\n" +
+            "✅ EVC Plus ayaad kula baxdaa lacagta\n" +
+            "✅ Diiwaangelinta 100% bilaash ah\n\n" +
+            "━━━━━━━━━━━━━━━━\n" +
+            "👇 *Bilow hadda — 3 tallaabo kaliya:*\n" +
+            "1️⃣ Diiwaan gali (bilaash)\n" +
+            "2️⃣ Dhig lacag yar\n" +
+            "3️⃣ Ciyaar oo lacag ka qaado! 💸",
+            { parse_mode: 'Markdown', ...fbAdWelcomeOptions }
+        );
+    }
+
+    // ---- REGULAR /start (organic) ----
     bot.sendMessage(
         chatId,
-        "👋 *Kusoo dhawoow Somlaaduu Bot!*\n\nFadlan dooro su'aasha aad rabto:",
+        "👋 *Kusoo dhawoow Laandhuu Bot!*\n\nFadlan dooro su'aasha aad rabto:",
         { parse_mode: 'Markdown', ...playerMenuOptions }
     );
 });

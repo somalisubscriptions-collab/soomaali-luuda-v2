@@ -26,6 +26,7 @@ const Login: React.FC<LoginProps> = ({
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const { login } = useAuth();
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -292,6 +293,37 @@ const Login: React.FC<LoginProps> = ({
           </p>
         </div>
 
+        {/* Supported Payments Display */}
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', fontWeight: 700 }}>
+            Qaababka Lacag-bixinta
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <img src="/icons/evc.png" alt="EVC Plus" title="EVC Plus" style={{ height: '36px', width: '36px', borderRadius: '8px', background: '#fff', padding: '3px', objectFit: 'contain', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }} />
+            <img src="/icons/edahab.png" alt="eDahab" title="eDahab" style={{ height: '36px', width: '36px', borderRadius: '8px', background: '#fff', padding: '3px', objectFit: 'contain', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }} />
+            <img src="/icons/salaam.png" alt="Salaam Bank" title="Salaam Bank" style={{ height: '36px', width: '36px', borderRadius: '8px', background: '#fff', padding: '3px', objectFit: 'contain', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }} />
+            <img src="/icons/premier.png" alt="Premier Bank" title="Premier Bank" style={{ height: '36px', width: '36px', borderRadius: '8px', background: '#fff', padding: '3px', objectFit: 'contain', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }} />
+            <img src="/icons/golis.png" alt="Golis" title="Golis" style={{ height: '36px', width: '36px', borderRadius: '8px', background: '#fff', padding: '3px', objectFit: 'contain', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }} />
+          </div>
+        </div>
+
+        {/* Tutorial Button */}
+        <button
+          type="button"
+          onClick={() => setShowTutorial(true)}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            width: '100%', background: 'rgba(255, 255, 255, 0.08)', color: '#fff',
+            border: '1px solid rgba(255, 255, 255, 0.15)', padding: '12px', borderRadius: '12px',
+            marginBottom: '20px', fontWeight: 600, fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s'
+          }}
+          onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'}
+          onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
+        >
+          <span style={{ fontSize: '18px' }}>📺</span>
+          Daawo Sida Loo Ciyaaro
+        </button>
+
         {/* Google Button */}
         <button
           className="google-btn"
@@ -309,7 +341,7 @@ const Login: React.FC<LoginProps> = ({
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
           )}
-          {googleLoading ? 'Redirecting to Google...' : 'Continue with Google'}
+          {googleLoading ? 'Waad ku xirmeysaa...' : 'Ku xiro Gmail-kaaga'}
         </button>
 
         {/* Divider */}
@@ -391,6 +423,75 @@ const Login: React.FC<LoginProps> = ({
           </button>
         </div>
       </div>
+
+      {/* ── FLOATING TELEGRAM SUPPORT BUTTON ── */}
+      <a 
+        href="https://t.me/Somlaandhuu" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          background: 'linear-gradient(135deg, #0088cc 0%, #00a2ff 100%)',
+          color: 'white',
+          padding: '12px 20px',
+          borderRadius: '30px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          boxShadow: '0 8px 25px rgba(0, 136, 204, 0.4)',
+          textDecoration: 'none',
+          fontWeight: 700,
+          fontSize: '14px',
+          zIndex: 1000,
+          transition: 'transform 0.2s ease',
+        }}
+        onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
+        onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+      >
+        <video 
+          src="/icons/customer-service.mp4" 
+          autoPlay 
+          loop 
+          muted 
+          playsInline
+          style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '50%', flexShrink: 0, marginLeft: '-4px', mixBlendMode: 'multiply' }} 
+        />
+        <span style={{ letterSpacing: '0.02em' }}>Caawinaad?</span>
+      </a>
+
+      {/* ── TUTORIAL MODAL ── */}
+      {showTutorial && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.85)', zIndex: 9999,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '20px', backdropFilter: 'blur(5px)'
+        }}>
+          <div style={{ width: '100%', maxWidth: '400px', background: '#1a1a1a', borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
+            <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <h3 style={{ margin: 0, color: '#fff', fontSize: '15px', fontWeight: 700 }}>Sida Loo Sameeyo</h3>
+              <button onClick={() => setShowTutorial(false)} style={{ background: 'none', border: 'none', color: '#888', fontSize: '24px', cursor: 'pointer', lineHeight: 1 }}>&times;</button>
+            </div>
+            <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, background: '#000' }}>
+              <iframe 
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+                src="https://www.youtube.com/embed/oHg5SJYRHA0"
+                title="Tutorial Video"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            </div>
+            <div style={{ padding: '16px', textAlign: 'center' }}>
+              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', margin: 0 }}>
+                Halkan waxaad ka baran kartaa sida loo ciyaaro iyo sida loo diiwaangaliyo.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
