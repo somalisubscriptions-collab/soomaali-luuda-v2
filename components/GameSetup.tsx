@@ -118,11 +118,25 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame, onEnterLobby, onRejo
 
   const handleEnableNotifications = () => {
     const OneSignal = (window as any).OneSignal;
-    if (OneSignal) {
-      OneSignal.push(() => {
-        OneSignal.showNativePrompt();
-      });
+    if (!OneSignal) {
+      return toast.error("Notifications are still loading... please wait 5 seconds.");
     }
+
+    OneSignal.push(async () => {
+      try {
+        const permission = await OneSignal.getNotificationPermission();
+        
+        if (permission === 'denied') {
+          toast.error("You have BLOCKED notifications in your browser settings. Please click the Lock icon (🔒) in your address bar and set Notifications to ALLOW.");
+        } else {
+          toast.loading("Opening permission popup...");
+          await OneSignal.showNativePrompt();
+        }
+      } catch (err) {
+        console.error("Prompt error:", err);
+        toast.error("Failed to open prompt. Try refreshing the page.");
+      }
+    });
   };
 
   const WHATSAPP_GROUP_LINK = 'https://chat.whatsapp.com/H1JaSyHUSTk2ZQ0RDZNUHP';
