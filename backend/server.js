@@ -1036,26 +1036,14 @@ app.post('/api/notifications/broadcast', authenticateToken, authorizeAdmin, asyn
       return res.status(400).json({ error: 'Title and Message are required' });
     }
 
-    // 1. Fetch all users with valid OneSignal Player IDs
-    const playersWithIds = await User.find({ 
-      oneSignalPlayerId: { $exists: true, $nin: [null, ''] }
-    }).select('oneSignalPlayerId');
+    console.log(`📢 Broadcasting: "${title}" to ALL subscribers...`);
 
-    const playerIds = playersWithIds.map(p => p.oneSignalPlayerId);
-
-    if (playerIds.length === 0) {
-      return res.json({ success: false, message: 'No push subscribers found to notify. Make sure players have allowed notifications.' });
-    }
-
-    console.log(`📢 Broadcasting custom alert: "${title}" to ${playerIds.length} players...`);
-
-    // 2. Send Notification via OneSignal API
     const notificationBody = {
       app_id: ONESIGNAL_APP_ID,
-      include_player_ids: playerIds,
+      included_segments: ['All'],
       headings: { en: title },
       contents: { en: message },
-      url: url || process.env.FRONTEND_URL || "https://soomaali-luuda-1.onrender.com",
+      url: url || process.env.FRONTEND_URL || 'https://laadhuu.online',
       data: { type: 'broadcast', admin: req.user.username }
     };
 
@@ -1074,8 +1062,8 @@ app.post('/api/notifications/broadcast', authenticateToken, authorizeAdmin, asyn
 
     res.json({
       success: true,
-      recipientCount: playerIds.length,
-      message: `Successfully sent broadcast to ${playerIds.length} players!`
+      recipientCount: response.data.recipients || 0,
+      message: `Successfully sent broadcast to ${response.data.recipients || 'all'} players!`
     });
   } catch (error) {
     const detail = error.response?.data || error.message || 'Unknown error';
