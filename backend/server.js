@@ -1053,7 +1053,7 @@ app.post('/api/notifications/broadcast', authenticateToken, authorizeAdmin, asyn
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Basic ${ONESIGNAL_API_KEY}`
+          'Authorization': `Key ${ONESIGNAL_API_KEY}`
         }
       }
     );
