@@ -1044,7 +1044,7 @@ app.post('/api/notifications/broadcast', authenticateToken, authorizeAdmin, asyn
     const playerIds = playersWithIds.map(p => p.oneSignalPlayerId);
 
     if (playerIds.length === 0) {
-      return res.status(404).json({ error: 'No push subscribers found to notify.' });
+      return res.json({ success: false, message: 'No push subscribers found to notify. Make sure players have allowed notifications.' });
     }
 
     console.log(`📢 Broadcasting custom alert: "${title}" to ${playerIds.length} players...`);
