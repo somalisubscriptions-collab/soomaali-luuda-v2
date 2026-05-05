@@ -1078,8 +1078,9 @@ app.post('/api/notifications/broadcast', authenticateToken, authorizeAdmin, asyn
       message: `Successfully sent broadcast to ${playerIds.length} players!`
     });
   } catch (error) {
-    console.error('Broadcast notification error:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Failed to send broadcast notification' });
+    const detail = error.response?.data || error.message || 'Unknown error';
+    console.error('Broadcast notification error:', JSON.stringify(detail));
+    res.status(500).json({ error: 'Failed to send broadcast notification', detail });
   }
 });
 
