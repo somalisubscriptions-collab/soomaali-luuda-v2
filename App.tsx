@@ -189,78 +189,65 @@ const AppContent: React.FC = () => {
   }, [pendingSifaloOrderId, isAuthenticated, authLoading]);
 
 
-  // --- OneSignal Push Notification Initialization ---
+  // --- OneSignal Push Notification Initialization (v16 SDK) ---
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
-    const initOneSignal = async () => {
+    const savePlayerId = async (playerId: string) => {
+      if (!playerId) return;
+      console.log('🔔 Syncing OneSignal ID to DB:', playerId);
+      const token = localStorage.getItem('ludo_token');
       try {
-        const OneSignal = (window as any).OneSignal || [];
-        
-        await OneSignal.push(() => {
-          OneSignal.init({
-            appId: "0416f4a4-ca9d-42c6-8106-eb44fa34f0ab",
-            safari_web_id: "web.onesignal.auto.5a5a1f6a-128a-4933-871d-531e21b06385",
-            notifyButton: { enable: false },
-            allowLocalhostAsSecureOrigin: true,
-          });
+        await fetch(`${API_URL}/notifications/player-id`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ playerId })
         });
-
-        const savePlayerId = async (playerId: string) => {
-          console.log('🔔 Attempting to sync OneSignal ID:', playerId);
-          const token = localStorage.getItem('ludo_token');
-          await fetch(`${API_URL}/notifications/player-id`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ playerId })
-          });
-          console.log('✅ OneSignal ID synced successfully.');
-        };
-
-        // 1. Check if they already have an ID
-        OneSignal.push(async () => {
-          const playerId = await OneSignal.getUserId();
-          if (playerId) {
-            await savePlayerId(playerId);
-          }
-        });
-
-        // 2. Listen for when they click "Allow" (Subscription Change)
-        OneSignal.push(() => {
-          OneSignal.on('subscriptionChange', async (isSubscribed: boolean) => {
-            if (isSubscribed) {
-              const playerId = await OneSignal.getUserId();
-              if (playerId) {
-                await savePlayerId(playerId);
-              }
-            }
-          });
-        });
-
-      } catch (err) {
-        console.error('❌ OneSignal Init Error:', err);
+        console.log('✅ OneSignal ID synced.');
+      } catch (e) {
+        console.error('Failed to sync OneSignal ID:', e);
       }
     };
 
-    initOneSignal();
+    // v16 SDK uses window.OneSignalDeferred
+    (window as any).OneSignalDeferred = (window as any).OneSignalDeferred || [];
+    (window as any).OneSignalDeferred.push(async (OneSignal: any) => {
+      try {
+        await OneSignal.init({
+          appId: '0416f4a4-ca9d-42c6-8106-eb44fa34f0ab',
+          safari_web_id: 'web.onesignal.auto.5a5a1f6a-128a-4933-871d-531e21b06385',
+          notifyButton: { enable: false },
+          allowLocalhostAsSecureOrigin: true,
+        });
+
+        // Check if already subscribed and sync the ID
+        const playerId = await OneSignal.User.PushSubscription.id;
+        if (playerId) {
+          await savePlayerId(playerId);
+        }
+
+        // Listen for new subscriptions
+        OneSignal.User.PushSubscription.addEventListener('change', async (event: any) => {
+          if (event.current?.isSubscribed) {
+            const newId = event.current.id;
+            if (newId) await savePlayerId(newId);
+          }
+        });
+
+        console.log('✅ OneSignal v16 initialized successfully');
+      } catch (err) {
+        console.error('❌ OneSignal v16 Init Error:', err);
+      }
+    });
   }, [isAuthenticated, user]);
 
-  // Unlock audio and request PUSH NOTIFICATION permissions on first user interaction
+  // Unlock audio on first user interaction
   useEffect(() => {
     const handler = () => {
       audioService.unlock();
-      
-      // Request OneSignal Permission explicitly on first tap
-      const OneSignal = (window as any).OneSignal;
-      if (OneSignal) {
-        OneSignal.push(() => {
-          OneSignal.showNativePrompt();
-        });
-      }
-
       window.removeEventListener('pointerdown', handler);
     };
     window.addEventListener('pointerdown', handler, { once: true });

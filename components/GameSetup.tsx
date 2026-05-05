@@ -96,47 +96,52 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame, onEnterLobby, onRejo
   ];
 
   const [checkingActiveGame, setCheckingActiveGame] = useState(true);
-  const [isSubscribed, setIsSubscribed] = useState(false); // Default to false so it shows up while checking
+  const [isSubscribed, setIsSubscribed] = useState(false);
 
-  // OneSignal Status Check
+  // OneSignal v16 Status Check
   useEffect(() => {
-    const OneSignal = (window as any).OneSignal;
-    if (OneSignal) {
-      OneSignal.push(async () => {
-        const status = await OneSignal.isPushNotificationsEnabled();
-        setIsSubscribed(!!status);
+    (window as any).OneSignalDeferred = (window as any).OneSignalDeferred || [];
+    (window as any).OneSignalDeferred.push((OneSignal: any) => {
+      const subscribed = OneSignal.User?.PushSubscription?.optedIn;
+      setIsSubscribed(!!subscribed);
+
+      // Listen for subscription changes
+      OneSignal.User?.PushSubscription?.addEventListener('change', (event: any) => {
+        setIsSubscribed(!!event.current?.isSubscribed);
       });
-      
-      // Listen for changes
-      OneSignal.push(() => {
-        OneSignal.on('subscriptionChange', (isSubscribed: boolean) => {
-          setIsSubscribed(isSubscribed);
-        });
-      });
-    }
+    });
   }, []);
 
-  const handleEnableNotifications = () => {
-    const OneSignal = (window as any).OneSignal;
-    if (!OneSignal) {
-      return toast.error("Notifications are still loading... please wait 5 seconds.");
-    }
-
-    OneSignal.push(async () => {
-      try {
-        const permission = await OneSignal.getNotificationPermission();
-        
-        if (permission === 'denied') {
-          toast.error("You have BLOCKED notifications in your browser settings. Please click the Lock icon (🔒) in your address bar and set Notifications to ALLOW.");
-        } else {
-          toast.loading("Opening permission popup...");
-          await OneSignal.showNativePrompt();
-        }
-      } catch (err) {
-        console.error("Prompt error:", err);
-        toast.error("Failed to open prompt. Try refreshing the page.");
+  const handleEnableNotifications = async () => {
+    try {
+      const OneSignal = (window as any).OneSignal;
+      if (!OneSignal) {
+        toast.error("Notifications still loading, wait a moment...");
+        return;
       }
-    });
+
+      const permission = (window as any).Notification?.permission;
+      if (permission === 'denied') {
+        toast.error("Notifications are BLOCKED. Tap the 🔒 lock icon in your browser address bar and set Notifications to ALLOW, then refresh.");
+        return;
+      }
+
+      toast.loading("Requesting permission...", { id: 'notif-toast' });
+      await OneSignal.Notifications.requestPermission();
+      toast.dismiss('notif-toast');
+
+      const isNowSubscribed = OneSignal.User?.PushSubscription?.optedIn;
+      if (isNowSubscribed) {
+        setIsSubscribed(true);
+        toast.success("🔔 Alerts enabled! You will now get win notifications.");
+      } else {
+        toast.error("Permission not granted. Please try again.");
+      }
+    } catch (err: any) {
+      toast.dismiss('notif-toast');
+      console.error("Notification error:", err);
+      toast.error("Could not enable alerts: " + err.message);
+    }
   };
 
   const WHATSAPP_GROUP_LINK = 'https://chat.whatsapp.com/H1JaSyHUSTk2ZQ0RDZNUHP';
