@@ -96,7 +96,7 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame, onEnterLobby, onRejo
   ];
 
   const [checkingActiveGame, setCheckingActiveGame] = useState(true);
-  const [isSubscribed, setIsSubscribed] = useState(true); // Default to true to avoid flicker
+  const [isSubscribed, setIsSubscribed] = useState(false); // Default to false so it shows up while checking
 
   // OneSignal Status Check
   useEffect(() => {
