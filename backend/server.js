@@ -1025,7 +1025,7 @@ app.post('/api/buy-gems', authenticateToken, async (req, res) => {
 const axios = require('axios');
 const ONESIGNAL_APP_ID = '0416f4a4-ca9d-42c6-8106-eb44fa34f0ab';
 // ⚠️ IMPORTANT: Get this from OneSignal Dashboard -> Settings -> Keys & IDs
-const ONESIGNAL_API_KEY = process.env.ONESIGNAL_API_KEY || 'os_v2_app_aqlpjjgktvbmnaig5ncpunhqvotbzj3axr4uji5gd2dqxp2ad5cm3fvebqspyw62sbbfvr2mdpoyjvdvfrgfyxfzrmhby4t7vbdhopq';
+const ONESIGNAL_API_KEY = process.env.ONESIGNAL_API_KEY || 'os_v2_app_aqlpjjgktvbmnaig5ncpunhqvnjfdxdpvmge265rltebtneuyy3thdrcss2gnuwaqhe7kc6yckuu3ohidrqy4pw23qr4jbzhq6g6qvi';
 
 // POST: Broadcast Custom Message to All Players (Admin Only)
 app.post('/api/notifications/broadcast', authenticateToken, authorizeAdmin, async (req, res) => {
