@@ -1038,7 +1038,7 @@ app.post('/api/notifications/broadcast', authenticateToken, authorizeAdmin, asyn
 
     // 1. Fetch all users with valid OneSignal Player IDs
     const playersWithIds = await User.find({ 
-      oneSignalPlayerId: { $exists: true, $ne: null, $ne: '' }
+      oneSignalPlayerId: { $exists: true, $nin: [null, ''] }
     }).select('oneSignalPlayerId');
 
     const playerIds = playersWithIds.map(p => p.oneSignalPlayerId);
@@ -1065,7 +1065,7 @@ app.post('/api/notifications/broadcast', authenticateToken, authorizeAdmin, asyn
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Basic ${ONESIGNAL_API_KEY}`
+          'Authorization': `Key ${ONESIGNAL_API_KEY}`
         }
       }
     );
