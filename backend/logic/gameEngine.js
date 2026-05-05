@@ -196,9 +196,9 @@ const processGameSettlement = async (gameObj) => {
         // SETTLEMENT CALCULATIONS
         // ============================================================================
         const totalPot = stake * 2;
-        const commission = totalPot * 0.10;
-        const winnings = totalPot - commission; // Winner gets 1.8 * stake
-        const profit = winnings - stake; // Winner's net profit is 0.8 * stake
+        const commission = stake === 0.15 ? 0.05 : totalPot * 0.10;
+        const winnings = totalPot - commission; 
+        const profit = winnings - stake; 
 
         console.log(`\n🧮 SETTLEMENT CALCULATIONS:`);
         console.log(`   Stake per player: $${stake.toFixed(2)}`);

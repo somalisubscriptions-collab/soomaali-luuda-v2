@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import { adminAPI } from '../../services/adminAPI';
 import { useAuth } from '../../context/AuthContext';
+import { API_URL } from '../../lib/apiConfig';
 import type { User, FinancialRequest, Revenue, RevenueWithdrawal, GameState, UserDetailsResponse, ReferralLeaderboardEntry } from '../../types';
 import Board from '../GameBoard';
 import Dice from '../Dice';
@@ -183,7 +184,7 @@ interface SuperAdminDashboardProps {
   onExit: () => void;
 }
 
-type AdminTab = 'dashboard' | 'analytics' | 'users' | 'games' | 'wallet' | 'revenue' | 'recent' | 'settings' | 'password' | 'gems' | 'accounting' | 'daily_registrants' | 'admin_deposits';
+type AdminTab = 'dashboard' | 'analytics' | 'users' | 'games' | 'wallet' | 'revenue' | 'recent' | 'settings' | 'password' | 'gems' | 'accounting' | 'daily_registrants' | 'admin_deposits' | 'notifications';
 
 const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onExit }) => {
   const { user } = useAuth();
@@ -279,6 +280,12 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onExit }) => 
 
   // Spectator State
   const [watchingGameId, setWatchingGameId] = useState<string | null>(null);
+
+  // Notification Broadcast State
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastLoading, setBroadcastLoading] = useState(false);
+
 
   // User Pagination State
 
@@ -745,6 +752,42 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onExit }) => 
       fetchCashLogs(accountingMonth);
     } catch (err: any) {
       showNotificationMessage(err.message || 'Failed to delete cash log', 'error');
+    }
+  };
+
+  const handleBroadcastSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastTitle || !broadcastMessage) {
+      return showNotificationMessage('Title and message are required', 'error');
+    }
+
+    setBroadcastLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/notifications/broadcast`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('ludo_token')}`
+        },
+        body: JSON.stringify({
+          title: broadcastTitle,
+          message: broadcastMessage
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showNotificationMessage(`Broadcast sent to ${data.recipientCount} players!`, 'success');
+        setBroadcastTitle('');
+        setBroadcastMessage('');
+      } else {
+        showNotificationMessage(data.error || 'Failed to send broadcast', 'error');
+      }
+    } catch (err: any) {
+      showNotificationMessage('Network error: ' + err.message, 'error');
+    } finally {
+      setBroadcastLoading(false);
     }
   };
 
@@ -3094,6 +3137,77 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onExit }) => 
         );
       }
 
+      case 'notifications':
+        return (
+          <div className="max-w-3xl mx-auto space-y-6">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center text-3xl">
+                  📢
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-gray-900">Broadcast Notification</h2>
+                  <p className="text-sm text-gray-500">Send a custom push alert to every player's phone.</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleBroadcastSend} className="space-y-6">
+                <div>
+                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Notification Title</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Free Tournament Starting Soon!"
+                    value={broadcastTitle}
+                    onChange={e => setBroadcastTitle(e.target.value)}
+                    className="w-full p-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:bg-white transition-all font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Message Body</label>
+                  <textarea
+                    required
+                    rows={4}
+                    placeholder="e.g. Join the $50 tournament now and win big! Click here to play."
+                    value={broadcastMessage}
+                    onChange={e => setBroadcastMessage(e.target.value)}
+                    className="w-full p-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:bg-white transition-all font-medium"
+                  />
+                  <div className="flex justify-between mt-2">
+                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Supports Somali text & Emojis ✅</p>
+                     <p className={`text-[10px] font-bold ${broadcastMessage.length > 200 ? 'text-red-500' : 'text-gray-400'}`}>
+                        {broadcastMessage.length}/255
+                     </p>
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <button
+                    type="submit"
+                    disabled={broadcastLoading}
+                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 disabled:from-gray-400 disabled:to-gray-500 text-white font-black rounded-xl shadow-xl transition-all transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3"
+                  >
+                    {broadcastLoading ? (
+                      <><div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin"></div> SENDING...</>
+                    ) : (
+                      <><span>🚀</span> SEND TO ALL PLAYERS</>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-xl">
+               <div className="flex items-center gap-3 text-amber-800">
+                  <span className="text-xl">⚠️</span>
+                  <p className="text-xs font-bold leading-relaxed">
+                    <strong>Usage Policy:</strong> Only send 1 broadcast per hour to avoid being blocked by Google/Apple. High-quality messages (bonuses, updates) lead to better retention.
+                  </p>
+               </div>
+            </div>
+          </div>
+        );
       case 'admin_deposits':
         return (
           <div className="space-y-6">
@@ -3434,6 +3548,20 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onExit }) => 
             >
               <span className="text-lg sm:text-xl">🧾</span>
               <span>Accounting</span>
+            </button>
+          )}
+
+          {/* Notifications - Super Admin Only */}
+          {user?.role === 'SUPER_ADMIN' && (
+            <button
+              onClick={() => setActiveTab('notifications')}
+              className={`w-full text-left px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-all duration-200 flex items-center gap-2 sm:gap-3 text-sm sm:text-base ${activeTab === 'notifications'
+                ? 'bg-blue-600 text-white shadow-md font-semibold'
+                : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900'
+                }`}
+            >
+              <span className="text-lg sm:text-xl">📢</span>
+              <span>Send Notifications</span>
             </button>
           )}
 

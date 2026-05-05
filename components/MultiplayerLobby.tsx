@@ -23,7 +23,7 @@ interface MatchRequest {
     canAccept: boolean;
 }
 
-const BET_OPTIONS = [0.25, 0.50, 1.00, 2.00, 3.00, 5.00];
+const BET_OPTIONS = [0.15, 0.25, 0.50, 1.00, 2.00, 3.00, 5.00];
 
 const getSessionId = () => {
     let id = sessionStorage.getItem('ludoSessionId');
@@ -100,7 +100,7 @@ const BetCard: React.FC<{ amount: number; onClick: () => void; disabled: boolean
                 ? 'bg-slate-900 text-slate-500 border-slate-700'
                 : 'bg-gradient-to-r from-green-900/30 to-emerald-900/30 text-green-400 border-green-500/30 group-hover:border-green-400 group-hover:from-green-800/40 group-hover:to-emerald-800/40'
                 }`}>
-                Win: ${(amount * 0.8).toFixed(2)}
+                Win: +${amount === 0.15 ? '0.10' : (amount * 0.8).toFixed(2)}
             </div>
         </button>
     );
@@ -125,7 +125,14 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ onStartGame, onExit
     const [showInsufficientBalanceModal, setShowInsufficientBalanceModal] = useState(false);
     const matchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [currentAnimIndex, setCurrentAnimIndex] = useState(0);
+    const [showTutorial, setShowTutorial] = useState(false);
+    const [activeVideo, setActiveVideo] = useState<{ id: number, title: string, enTitle: string, src: string, icon: string } | null>(null);
     const { user } = useAuth();
+
+    const tutorialList = [
+        { id: 1, title: 'Sidee lacag loo dhigtaa?', enTitle: 'How to deposit money?', src: '/icons/how-to-deposit.mp4', icon: '💰' },
+        { id: 2, title: 'Sida lacagta loola baxo', enTitle: 'How to withdraw money', src: '/icons/how-to-withdraw.mp4', icon: '💸' },
+    ];
 
     const sessionId = getSessionId();
     const socketRef = useRef<Socket | null>(null);
@@ -745,8 +752,83 @@ const MultiplayerLobby: React.FC<MultiplayerLobbyProps> = ({ onStartGame, onExit
                         }
                     }}
                     currentUserId={user?.id || sessionId}
+                    onShowTutorial={() => setShowTutorial(true)}
                 />
             </div>
+
+
+
+            {/* ── TUTORIAL MODAL ── */}
+            {showTutorial && (
+                <div className="fixed inset-0 bg-black/85 z-[9999] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-md bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col max-h-[80vh]">
+                        <div className="p-4 flex justify-between items-center border-b border-slate-800 shrink-0">
+                            {activeVideo ? (
+                                <button onClick={() => setActiveVideo(null)} className="flex items-center gap-1 bg-transparent border-none text-cyan-400 text-sm cursor-pointer font-bold p-0 hover:text-cyan-300">
+                                    <span>←</span> Dib u noqo
+                                </button>
+                            ) : (
+                                <h3 className="m-0 text-white text-base font-bold">🎥 Qeybta Caawinaada</h3>
+                            )}
+                            <button onClick={() => { setShowTutorial(false); setActiveVideo(null); }} className="bg-transparent border-none text-slate-400 text-2xl cursor-pointer leading-none hover:text-white">&times;</button>
+                        </div>
+                        
+                        {activeVideo ? (
+                            <div className="overflow-y-auto">
+                                <div className="w-full bg-black flex items-center justify-center">
+                                    <video 
+                                        className="w-full max-h-[50vh] object-contain"
+                                        src={activeVideo.src}
+                                        controls
+                                        autoPlay
+                                        playsInline
+                                    />
+                                </div>
+                                <div className="p-4 text-center">
+                                    <h4 className="text-white m-0 mb-2 text-base font-bold">{activeVideo.title}</h4>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="p-4 overflow-y-auto">
+                                <p className="text-slate-400 text-sm m-0 mb-4 text-center">
+                                    Dooro muuqaalka aad rabto in aad daawato:
+                                </p>
+                                <div className="flex flex-col gap-3">
+                                    {tutorialList.map((tut) => (
+                                        <div 
+                                            key={tut.id} 
+                                            onClick={() => setActiveVideo(tut)}
+                                            className="group flex items-center gap-4 p-4 bg-gradient-to-br from-slate-800 to-slate-800/80 border border-slate-700 rounded-2xl cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-cyan-500/20 hover:border-cyan-500/50"
+                                        >
+                                            <div className="text-3xl w-14 h-14 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl flex items-center justify-center shrink-0 border border-slate-600 shadow-inner group-hover:scale-110 group-hover:border-cyan-500/50 transition-transform duration-300">
+                                                {tut.icon}
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="text-white font-extrabold text-[15px] mb-1">{tut.title}</div>
+                                                <div className="text-slate-400 text-xs font-medium mb-3">{tut.enTitle}</div>
+                                                <div className="inline-flex items-center gap-1.5 bg-cyan-500/20 text-cyan-400 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border border-cyan-500/30">
+                                                    <span className="text-[12px] leading-none">▶</span> Daawo
+                                                </div>
+                                            </div>
+                                            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-cyan-400 text-xl font-bold group-hover:bg-cyan-500 group-hover:text-white transition-colors duration-300">
+                                                ›
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Support Footer */}
+                                <div className="mt-6 p-4 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+                                    <p className="text-[13px] text-slate-400 leading-relaxed text-center m-0">
+                                        <span className="font-bold text-white block mb-1">Ma u baahan tahay caawinaad?</span>
+                                        Hadii cabasho ama wax aad fahmi weysay ay jiraan lasoo xariir telegraamkeena <a href="https://t.me/Somlaandhuu" target="_blank" rel="noopener noreferrer" className="text-cyan-400 font-bold hover:underline">@Somlaandhuu</a> ama soo wac <a href="tel:0610251014" className="text-cyan-400 font-bold hover:underline">0610251014</a>
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

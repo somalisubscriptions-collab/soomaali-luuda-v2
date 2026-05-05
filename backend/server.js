@@ -767,7 +767,8 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
       status: userData.status,
       joined: userData.createdAt ? new Date(userData.createdAt).toISOString() : new Date().toISOString(),
       createdAt: userData.createdAt,
-      stats: userData.stats || { gamesPlayed: 0, wins: 0 }
+      stats: userData.stats || { gamesPlayed: 0, wins: 0 },
+      transactions: userData.transactions || []
     };
 
     res.json(formattedUser);
@@ -1026,6 +1027,62 @@ const ONESIGNAL_APP_ID = '0416f4a4-ca9d-42c6-8106-eb44fa34f0ab';
 // ⚠️ IMPORTANT: Get this from OneSignal Dashboard -> Settings -> Keys & IDs
 const ONESIGNAL_API_KEY = process.env.ONESIGNAL_API_KEY || 'os_v2_app_aqlpjjgktvbmnaig5ncpunhqvotbzj3axr4uji5gd2dqxp2ad5cm3fvebqspyw62sbbfvr2mdpoyjvdvfrgfyxfzrmhby4t7vbdhopq';
 
+// POST: Broadcast Custom Message to All Players (Admin Only)
+app.post('/api/notifications/broadcast', authenticateToken, authorizeAdmin, async (req, res) => {
+  try {
+    const { title, message, url } = req.body;
+
+    if (!title || !message) {
+      return res.status(400).json({ error: 'Title and Message are required' });
+    }
+
+    // 1. Fetch all users with valid OneSignal Player IDs
+    const playersWithIds = await User.find({ 
+      oneSignalPlayerId: { $exists: true, $ne: null, $ne: '' }
+    }).select('oneSignalPlayerId');
+
+    const playerIds = playersWithIds.map(p => p.oneSignalPlayerId);
+
+    if (playerIds.length === 0) {
+      return res.status(404).json({ error: 'No push subscribers found to notify.' });
+    }
+
+    console.log(`📢 Broadcasting custom alert: "${title}" to ${playerIds.length} players...`);
+
+    // 2. Send Notification via OneSignal API
+    const notificationBody = {
+      app_id: ONESIGNAL_APP_ID,
+      include_player_ids: playerIds,
+      headings: { en: title },
+      contents: { en: message },
+      url: url || process.env.FRONTEND_URL || "https://soomaali-luuda-1.onrender.com",
+      data: { type: 'broadcast', admin: req.user.username }
+    };
+
+    const response = await axios.post(
+      'https://onesignal.com/api/v1/notifications',
+      notificationBody,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${ONESIGNAL_API_KEY}`
+        }
+      }
+    );
+
+    console.log('✅ Broadcast sent:', response.data);
+
+    res.json({
+      success: true,
+      recipientCount: playerIds.length,
+      message: `Successfully sent broadcast to ${playerIds.length} players!`
+    });
+  } catch (error) {
+    console.error('Broadcast notification error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to send broadcast notification' });
+  }
+});
+
 // POST: Save OneSignal Player ID
 app.post('/api/notifications/player-id', authenticateToken, async (req, res) => {
   try {
@@ -1064,6 +1121,21 @@ app.post('/api/notifications/announce', authenticateToken, async (req, res) => {
     const lastInvite = inviteCooldowns.get(userId);
     const now = Date.now();
     if (lastInvite && now - lastInvite < 60000) {
+      return res.status(429).json({ error: 'Fadlan sug 1 daqiiqo ka hor inta aadan dirin ogeysiis kale.' });
+    }
+    inviteCooldowns.set(userId, now);
+
+    // 2. Fetch all users with valid OneSignal Player IDs (exclude current user)
+    const playersWithIds = await User.find({ 
+      oneSignalPlayerId: { $exists: true, $ne: null, $ne: '' },
+      _id: { $ne: userId }
+    }).select('oneSignalPlayerId');
+
+    const playerIds = playersWithIds.map(p => p.oneSignalPlayerId);
+
+    if (playerIds.length === 0) {
+      console.log(`⚠️ No active push subscribers found to invite.`);
+      return res.json({ success: true, recipientCount: 0, message: 'No players online to notify.' });
     }
 
     console.log(`📢 Sending game invite for $${stake} to ${playerIds.length} players...`);

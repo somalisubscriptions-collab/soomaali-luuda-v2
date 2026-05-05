@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { gameAPI } from '../services/gameAPI';
 import RejoinGameBanner from './RejoinGameBanner';
 import WithdrawalTestimonials from './WithdrawalTestimonials';
-import { Copy, Gem } from 'lucide-react';
+import { Copy, Gem, Trophy } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import AdminQuickActions from './AdminQuickActions';
 import SlidingNotification from './SlidingNotification';
@@ -87,7 +87,13 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame, onEnterLobby, onRejo
   const [showRejoinBanner, setShowRejoinBanner] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
-  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [activeVideo, setActiveVideo] = useState<{ id: number, title: string, enTitle: string, src: string, icon: string } | null>(null);
+
+  const tutorialList = [
+    { id: 2, title: 'Sidee lacag loo dhigtaa?', enTitle: 'How to deposit money?', src: '/icons/how-to-deposit.mp4', icon: '💰' },
+    { id: 3, title: 'Sida lacagta loola baxo', enTitle: 'How to withdraw money', src: '/icons/how-to-withdraw.mp4', icon: '💸' },
+  ];
 
   const [checkingActiveGame, setCheckingActiveGame] = useState(true);
 
@@ -554,22 +560,15 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame, onEnterLobby, onRejo
 
       <img src="/icons/laddea.png" alt="Ludo Master Logo" className="w-20 h-auto mb-1 mt-2" />
 
-      {/* Telegram Support Sliding Notification */}
-      <div className="w-full max-w-md mb-4 px-2">
-        <SlidingNotification
-          text="Markii aad lacagta dhiganayso ama labaxayso telegramka imoow, soo qor 1. magacaga 2. cadadka lacagta soo dirtay ama labaxaysid, 3. numberka gameka aad ku samaysatay"
-          speed={35}
-          bgColor="bg-blue-500/10"
-          textColor="text-blue-50"
-          className="rounded-xl border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
-        />
-      </div>
+
 
       <div className="bg-slate-700 p-4 rounded-xl shadow-2xl w-full max-w-md text-center border border-slate-600">
-        <WithdrawalTestimonials />
+        {/* <WithdrawalTestimonials /> */}
 
         {/* Main Menu Buttons Stack */}
         <div className="space-y-3 w-full">
+        {/* Main Menu Grid (2x2) */}
+        <div className="grid grid-cols-2 gap-3 w-full">
           {/* 1. Online (Ludo) Button */}
           <button
             onClick={() => {
@@ -577,118 +576,150 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame, onEnterLobby, onRejo
               onEnterLobby();
             }}
             disabled={user?.balance === undefined || user.balance <= 0}
-            className={`w-full flex items-center justify-center gap-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-bold text-xl py-5 rounded-xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-95 border-b-4 border-blue-800 ${user?.balance !== undefined && user.balance > 0 ? '' : 'grayscale opacity-70 cursor-not-allowed'}`}
-          >
-            <span className="text-3xl filter drop-shadow-md">🎲</span>
-            <span className="text-2xl tracking-wide drop-shadow-sm">Online</span>
-          </button>
-
-          {/* 2. JAR (Tic-Tac-Toe) Button - Hidden until ready */}
-          {/* <button
-            onClick={() => {
-              handleSelectGame('TIC_TAC_TOE');
-              onEnterLobby();
-            }}
-            disabled={user?.balance === undefined || user.balance <= 0}
-            className={`w-full flex items-center justify-center gap-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-lg py-3 rounded-lg shadow-md transition-all transform hover:scale-[1.02] active:scale-95 border-b-4 border-orange-800 ${user?.balance !== undefined && user.balance > 0 ? '' : 'grayscale opacity-70 cursor-not-allowed'}`}
-          >
-            <span className="text-2xl">❌⭕</span>
-            <div className="flex flex-col items-start leading-none">
-              <span className="text-lg">JAR</span>
-              <span className="text-[10px] text-amber-100 opacity-90">Win $0.09 • Stake $0.05</span>
-            </div>
-          </button> */}
-
-
-          {/* Referrals Button - Temporarily Hidden */}
-          {/* {onEnterReferrals && (
-            <button
-              onClick={onEnterReferrals}
-              className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-700 hover:to-purple-700 text-white font-bold text-lg py-3 rounded-lg shadow-xl transition-all transform hover:scale-105 border-2 border-cyan-400/50"
-            >
-              <span className="text-2xl">🎁</span>
-              <div className="flex flex-col items-start">
-                <span className="text-sm text-cyan-100 font-medium">Referrals</span>
-                <span className="text-xs text-cyan-200/80">Earn from friends</span>
-              </div>
-            </button>
-          )} */}
-
-          {/* WhatsApp Community Button */}
-          <button
-            onClick={() => setShowWhatsAppModal(true)}
-            className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold text-lg py-3 rounded-lg shadow-xl transition-all transform hover:scale-105 border-2 border-green-400/40"
-          >
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-            </svg>
-            <div className="flex flex-col items-start">
-              <span className="text-sm text-white font-medium">Kusoo biir</span>
-              <span className="text-xs text-green-100/80">Join Community</span>
-            </div>
-          </button>
-
-          {/* Live Matches Button */}
-          {onEnterLiveMatches && (
-            <button
-              onClick={onEnterLiveMatches}
-              className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 hover:from-blue-500/30 hover:to-indigo-500/30 text-white font-bold text-lg py-3 rounded-lg shadow-xl transition-all transform hover:scale-105 border-2 border-blue-400/20 group"
-            >
-              <span className="text-2xl group-hover:animate-pulse">📡</span>
-              <div className="flex flex-col items-start text-left">
-                <span className="text-sm text-white font-bold">Ciyaaraha Socda</span>
-                <span className="text-[10px] text-blue-200/60 uppercase tracking-widest">Live Watch Mode</span>
-              </div>
-            </button>
-          )}
-
-          {showInstallButton && onInstall && (
-            <button
-              onClick={onInstall}
-              className="w-full flex items-center justify-center space-x-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xl py-4 rounded-lg shadow-xl transition transform hover:scale-105 border-2 border-blue-400/50 mt-4"
-            >
-              <span className="text-2xl">⬇️</span>
-              <span>Install App</span>
-            </button>
-          )}
-
-          {/* DEPOSIT / WITHDRAWAL BUTTON */}
-          <button
-            onClick={() => setShowDepositModal(true)}
-            className="w-full flex items-center justify-center gap-4 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold text-lg py-4 rounded-xl shadow-xl transition-all transform hover:scale-105 border-2 border-emerald-400/40 relative overflow-hidden group mt-4"
+            className={`flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-cyan-600 to-blue-700 hover:from-cyan-500 hover:to-blue-600 text-white font-bold py-6 rounded-2xl shadow-xl transition-all transform hover:scale-[1.02] active:scale-95 border-b-4 border-blue-900 relative overflow-hidden group ${user?.balance !== undefined && user.balance > 0 ? '' : 'grayscale opacity-70 cursor-not-allowed'}`}
           >
             <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <span className="text-3xl group-hover:scale-110 transition-transform duration-300 drop-shadow-md">💰</span>
-            <div className="flex flex-col items-start leading-tight gap-0.5">
-              <span className="text-lg font-bold tracking-wide">Lacag dhigasho & labixid</span>
-              <span className="text-[10px] text-emerald-200/80 uppercase tracking-widest font-black">Deposit & Withdrawal</span>
+            <div className="relative w-16 h-16 mb-2 group-hover:scale-110 transition-transform duration-300 drop-shadow-md z-10">
+              <video
+                src="/icons/dice.webm"
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex flex-col items-center leading-none relative z-10">
+              <span className="text-xl tracking-tight font-black uppercase">Online</span>
+              <span className="text-[9px] text-cyan-200/60 font-bold mt-1 uppercase tracking-widest">Ludo Master</span>
             </div>
           </button>
 
-          {/* Mini Admin Dashboard Button - for whitelisted phones */}
-          {isMiniAdmin(user?.phone) && onEnterMiniAdmin && (
+          {/* 2. DEPOSIT / WITHDRAWAL (Sifalo Pay) */}
+          <button
+            onClick={onEnterWallet}
+            className="flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold py-6 rounded-2xl shadow-xl transition-all transform hover:scale-[1.02] active:scale-95 border-b-4 border-emerald-900 relative overflow-hidden group"
+          >
+            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative z-10 flex flex-col items-center gap-1">
+              <span className="text-3xl drop-shadow-md group-hover:scale-110 transition-transform duration-300">💰</span>
+              <div className="flex flex-col items-center leading-none">
+                <span className="text-sm font-black uppercase tracking-tight">Deposit & withdraw</span>
+
+              </div>
+            </div>
+            {/* Balance overlay at bottom of this card */}
+            <div className="mt-2 bg-black/30 px-3 py-1 rounded-lg border border-white/10 relative z-10">
+              <span className="text-[11px] font-black text-emerald-300 tracking-tighter">${user?.balance?.toFixed(2) || '0.00'}</span>
+            </div>
+          </button>
+
+          {/* 3. WhatsApp Community */}
+          <button
+            onClick={() => setShowWhatsAppModal(true)}
+            className="flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 text-white font-bold py-6 rounded-2xl shadow-xl transition-all transform hover:scale-[1.02] active:scale-95 border-b-4 border-green-900 relative overflow-hidden group"
+          >
+            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <svg className="w-10 h-10 drop-shadow-md group-hover:scale-110 transition-transform duration-300 relative z-10" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+            </svg>
+            <div className="flex flex-col items-center leading-none relative z-10">
+              <span className="text-sm font-black uppercase tracking-tight">Kusoo biir</span>
+              <span className="text-[9px] text-green-100/60 font-bold mt-1 uppercase tracking-widest">Community</span>
+            </div>
+          </button>
+
+          {/* 4. Live Matches Button */}
+          <button
+            onClick={onEnterLiveMatches}
+            className="flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-blue-600/30 to-indigo-700/30 hover:from-blue-600/40 hover:to-indigo-700/40 text-white font-bold py-6 rounded-2xl shadow-xl transition-all transform hover:scale-[1.02] active:scale-95 border-b-4 border-indigo-900 relative overflow-hidden group"
+          >
+            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <span className="text-4xl group-hover:animate-pulse transition-transform duration-300 drop-shadow-md relative z-10">📡</span>
+            <div className="flex flex-col items-center leading-none relative z-10">
+              <span className="text-sm font-black uppercase tracking-tight">Live Watch</span>
+              <span className="text-[9px] text-blue-200/60 font-bold mt-1 uppercase tracking-widest">Socda Hadda</span>
+            </div>
+          </button>
+
+          {/* 5. Tournament - Coming Soon
+          <div className="relative group col-span-2 mt-2">
             <button
-              onClick={onEnterMiniAdmin}
-              className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-lg py-3 rounded-lg shadow-xl transition-all transform hover:scale-105 border-2 border-amber-400/40 mt-4"
+              disabled
+              className="w-full flex items-center justify-between gap-4 bg-gradient-to-r from-purple-900/40 to-slate-900/40 text-white/50 font-bold py-6 px-8 rounded-2xl shadow-xl border-2 border-dashed border-purple-500/20 relative overflow-hidden cursor-not-allowed"
             >
-              <span className="text-2xl">🛡️</span>
-              <div className="flex flex-col items-start">
-                <span className="text-sm font-bold">Admin Panel</span>
-                <span className="text-[10px] text-amber-100/80 uppercase tracking-widest">Active Games & Requests</span>
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-purple-500/10 rounded-xl border border-purple-500/20">
+                  <Trophy className="w-8 h-8 text-purple-400/50" />
+                </div>
+                <div className="flex flex-col items-start leading-none">
+                  <span className="text-xl font-black uppercase tracking-tight">Tournament</span>
+                  <span className="text-[9px] text-purple-400/40 font-black mt-1 uppercase tracking-widest">Coming Soon</span>
+                </div>
+              </div>
+              
+              <div className="bg-purple-600/20 text-purple-400 px-4 py-1.5 rounded-full border border-purple-500/30 text-[10px] font-black uppercase tracking-widest">
+                🔒 Locked
               </div>
             </button>
-          )}
+            
+            <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-[10px] font-black px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-2xl border border-purple-400/30 uppercase tracking-widest z-50">
+              Coming Very Soon! 🏆
+            </div>
+          </div>
+          */}
+        </div>
 
-          {/* Super Admin Button - Prominent in Main Menu */}
-          {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && onEnterSuperAdmin && (
-            <button
-              onClick={onEnterSuperAdmin}
-              className="w-full flex items-center justify-center space-x-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold text-xl py-4 rounded-lg shadow-xl transition transform hover:scale-105 border-2 border-purple-400/50 mt-4"
-            >
-              <span className="text-2xl">⚡</span>
-              <span>Super Admin Dashboard</span>
-            </button>
-          )}
+        {/* Tutorial Button (Below Grid) */}
+        <button
+          onClick={() => setShowTutorial(true)}
+          className="w-full flex items-center justify-between px-6 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold py-4 rounded-2xl shadow-xl transition-all transform hover:scale-[1.01] active:scale-98 border-b-4 border-orange-800 relative overflow-hidden group mt-4"
+        >
+          <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div className="flex items-center gap-4 relative z-10">
+            <span className="text-2xl group-hover:scale-110 transition-transform duration-300 drop-shadow-md">📺</span>
+            <div className="flex flex-col items-start leading-tight">
+              <span className="text-base font-black tracking-wide uppercase">Sida loo isticmaalo</span>
+              <span className="text-[10px] text-amber-100/70 uppercase tracking-widest font-black">Video Tutorial</span>
+            </div>
+          </div>
+          <span className="text-white/40 group-hover:translate-x-1 transition-transform relative z-10">➜</span>
+        </button>
+
+        {showInstallButton && onInstall && (
+          <button
+            onClick={onInstall}
+            className="w-full flex items-center justify-center space-x-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xl py-4 rounded-lg shadow-xl transition transform hover:scale-105 border-2 border-blue-400/50 mt-4"
+          >
+            <span className="text-2xl">⬇️</span>
+            <span>Install App</span>
+          </button>
+        )}
+
+        {/* Mini Admin Dashboard Button - for whitelisted phones */}
+        {isMiniAdmin(user?.phone) && onEnterMiniAdmin && (
+          <button
+            onClick={onEnterMiniAdmin}
+            className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-lg py-3 rounded-lg shadow-xl transition-all transform hover:scale-105 border-2 border-amber-400/40 mt-4"
+          >
+            <span className="text-2xl">🛡️</span>
+            <div className="flex flex-col items-start">
+              <span className="text-sm font-bold">Admin Panel</span>
+              <span className="text-[10px] text-amber-100/80 uppercase tracking-widest">Active Games & Requests</span>
+            </div>
+          </button>
+        )}
+
+        {/* Super Admin Button - Prominent in Main Menu */}
+        {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && onEnterSuperAdmin && (
+          <button
+            onClick={onEnterSuperAdmin}
+            className="w-full flex items-center justify-center space-x-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold text-xl py-4 rounded-lg shadow-xl transition transform hover:scale-105 border-2 border-purple-400/50 mt-4"
+          >
+            <span className="text-2xl">⚡</span>
+            <span>Super Admin Dashboard</span>
+          </button>
+        )}
         </div>
 
 
@@ -744,47 +775,7 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame, onEnterLobby, onRejo
         </div>
       )}
 
-      {/* Deposit/Withdrawal WhatsApp Modal */}
-      {showDepositModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in zoom-in duration-200" onClick={() => setShowDepositModal(false)}>
-          <div className="bg-gradient-to-br from-green-900 via-emerald-800 to-teal-900 rounded-3xl max-w-sm w-full p-6 shadow-[0_0_40px_rgba(16,185,129,0.3)] border border-green-500/30 relative" onClick={(e) => e.stopPropagation()}>
-            <button 
-              onClick={() => setShowDepositModal(false)}
-              className="absolute top-4 right-4 text-emerald-200 hover:text-white transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-            <div className="text-center mb-6 mt-2">
-              <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-2xl w-20 h-20 mx-auto mb-4 flex items-center justify-center border border-green-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)] transform transition-transform hover:scale-105 duration-300">
-                 <span className="text-4xl drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]">💰</span>
-              </div>
-              <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-emerald-300 tracking-tight leading-tight">Lacag Dhigasho & Labixid</h2>
-              <div className="bg-slate-950/40 rounded-xl p-4 mt-6 border border-slate-700/50">
-                <p className="text-slate-200 text-sm font-medium leading-relaxed">
-                  Fadlan hadii aad dooneyso lacag labixid iyo dhigasho la xariir Telegraamkaan hoose.
-                </p>
-              </div>
-            </div>
 
-            <div className="flex flex-col gap-4 mt-4">
-              <a 
-                href="https://t.me/Somlaandhuu"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="relative bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 border-2 border-blue-400/50 hover:border-blue-300 rounded-2xl p-4 flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.6)] hover:-translate-y-1 group overflow-hidden"
-              >
-                <svg className="w-8 h-8 text-white drop-shadow-md z-10 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-                </svg>
-                <div className="flex flex-col items-start gap-0.5 z-10 w-full text-center items-center justify-center">
-                  <span className="text-white font-black text-xl leading-none drop-shadow-md">@Somlaandhuu</span>
-                  <span className="text-blue-200 text-[10px] uppercase tracking-widest font-bold">La xariir Telegram</span>
-                </div>
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
 
 
 
@@ -798,6 +789,72 @@ const GameSetup: React.FC<GameSetupProps> = ({ onStartGame, onEnterLobby, onRejo
       {/* Auto-refresh user when modal opens to ensure latest XP */}
       {showStatsModal && (
         <RefreshTrigger />
+      )}
+      {/* ── TUTORIAL MODAL (Proportional Redesign) ── */}
+      {showTutorial && (
+        <div className="fixed inset-0 bg-black/98 z-[9999] flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="w-full max-w-md bg-slate-950 rounded-2xl border-2 border-purple-600 overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+            <div className="p-6 bg-purple-600 flex justify-between items-center shrink-0">
+              {activeVideo ? (
+                <button onClick={() => setActiveVideo(null)} className="bg-white text-purple-600 px-5 py-2 rounded-full text-xs font-black uppercase tracking-widest hover:scale-105 transition-transform">
+                  ← Back
+                </button>
+              ) : (
+                <h3 className="text-lg font-black text-white uppercase tracking-widest">Tutorials</h3>
+              )}
+              <button onClick={() => { setShowTutorial(false); setActiveVideo(null); }} className="w-10 h-10 rounded-full bg-white text-purple-600 flex items-center justify-center font-black text-xl hover:scale-105 transition-transform shadow-xl">&times;</button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto custom-scrollbar">
+              {activeVideo ? (
+                <div className="space-y-6">
+                  <div className="aspect-video w-full bg-black rounded-2xl overflow-hidden border-2 border-purple-600 shadow-xl">
+                    <video 
+                      className="w-full h-full object-cover"
+                      src={activeVideo.src}
+                      controls
+                      autoPlay
+                      playsInline
+                    />
+                  </div>
+                  <div className="text-center">
+                    <h4 className="text-2xl font-black text-white tracking-tight uppercase leading-tight">{activeVideo.title}</h4>
+                    <p className="text-purple-400 text-[10px] font-black mt-2 uppercase tracking-widest opacity-60">{activeVideo.enTitle}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {tutorialList.map((tut) => (
+                    <button 
+                      key={tut.id} 
+                      onClick={() => setActiveVideo(tut)}
+                      className="w-full flex items-center gap-4 p-4 bg-slate-900 border border-white/5 rounded-2xl hover:border-purple-600 transition-all group"
+                    >
+                      <div className="w-14 h-14 bg-purple-600 rounded-xl flex items-center justify-center text-3xl shadow-xl group-hover:scale-105 transition-transform">
+                        {tut.icon}
+                      </div>
+                      <div className="flex-1 text-left">
+                        <h5 className="text-white font-black text-base uppercase tracking-tight group-hover:text-purple-300 transition-colors">{tut.title}</h5>
+                        <p className="text-purple-400 text-[10px] font-black uppercase opacity-60 mt-1">{tut.enTitle}</p>
+                      </div>
+                    </button>
+                  ))}
+
+                  <div className="mt-6 p-4 bg-purple-600/10 border border-purple-600/20 rounded-xl text-center">
+                    <p className="text-[11px] text-purple-300 font-black uppercase leading-tight">
+                      Support: <a href="https://t.me/Somlaandhuu" className="text-white hover:underline">@Somlaandhuu</a>
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <style>{`
+            .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+            .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.01); }
+            .custom-scrollbar::-webkit-scrollbar-thumb { background: #9333ea; border-radius: 20px; }
+          `}</style>
+        </div>
       )}
     </div>
   );

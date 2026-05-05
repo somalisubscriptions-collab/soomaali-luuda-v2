@@ -27,7 +27,14 @@ const Login: React.FC<LoginProps> = ({
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [activeVideo, setActiveVideo] = useState<{ id: number, title: string, enTitle: string, src: string, icon: string } | null>(null);
   const { login } = useAuth();
+
+  const tutorialList = [
+    { id: 1, title: 'Sidee loo sameestaa gameka?', enTitle: 'How to create an account?', src: '/icons/how-to-sign-up.mp4', icon: '📝' },
+    { id: 2, title: 'Sidee lacag loo dhigtaa?', enTitle: 'How to deposit money?', src: '/icons/how-to-deposit.mp4', icon: '💰' },
+    { id: 3, title: 'Sida lacagta loola baxo', enTitle: 'How to withdraw money', src: '/icons/how-to-withdraw.mp4', icon: '💸' },
+  ];
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, '');
@@ -321,7 +328,7 @@ const Login: React.FC<LoginProps> = ({
           onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
         >
           <span style={{ fontSize: '18px' }}>📺</span>
-          Daawo Sida Loo Ciyaaro
+          Sida loo isticmaalo (Tutorial)
         </button>
 
         {/* Google Button */}
@@ -469,26 +476,120 @@ const Login: React.FC<LoginProps> = ({
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: '20px', backdropFilter: 'blur(5px)'
         }}>
-          <div style={{ width: '100%', maxWidth: '400px', background: '#1a1a1a', borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
-            <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-              <h3 style={{ margin: 0, color: '#fff', fontSize: '15px', fontWeight: 700 }}>Sida Loo Sameeyo</h3>
-              <button onClick={() => setShowTutorial(false)} style={{ background: 'none', border: 'none', color: '#888', fontSize: '24px', cursor: 'pointer', lineHeight: 1 }}>&times;</button>
+          <div style={{ width: '100%', maxWidth: '400px', background: '#1a1a1a', borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', maxHeight: '80vh' }}>
+            
+            <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
+              {activeVideo ? (
+                <button onClick={() => setActiveVideo(null)} style={{ background: 'none', border: 'none', color: '#818cf8', fontSize: '14px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', padding: 0 }}>
+                  <span>←</span> Dib u noqo
+                </button>
+              ) : (
+                <h3 style={{ margin: 0, color: '#fff', fontSize: '16px', fontWeight: 700 }}>🎥 Qeybta Caawinaada</h3>
+              )}
+              <button onClick={() => { setShowTutorial(false); setActiveVideo(null); }} style={{ background: 'none', border: 'none', color: '#888', fontSize: '24px', cursor: 'pointer', lineHeight: 1 }}>&times;</button>
             </div>
-            <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, background: '#000' }}>
-              <iframe 
-                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-                src="https://www.youtube.com/embed/oHg5SJYRHA0"
-                title="Tutorial Video"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              ></iframe>
-            </div>
-            <div style={{ padding: '16px', textAlign: 'center' }}>
-              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', margin: 0 }}>
-                Halkan waxaad ka baran kartaa sida loo ciyaaro iyo sida loo diiwaangaliyo.
-              </p>
-            </div>
+
+            {activeVideo ? (
+              // Video Player View
+              <div style={{ overflowY: 'auto' }}>
+                <div style={{ width: '100%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <video 
+                    style={{ width: '100%', maxHeight: '50vh', objectFit: 'contain' }}
+                    src={activeVideo.src}
+                    controls
+                    autoPlay
+                    playsInline
+                  />
+                </div>
+                <div style={{ padding: '16px', textAlign: 'center' }}>
+                  <h4 style={{ color: '#fff', margin: '0 0 8px 0', fontSize: '15px' }}>{activeVideo.title}</h4>
+                </div>
+              </div>
+            ) : (
+              // List View
+              <div style={{ padding: '16px', overflowY: 'auto' }}>
+                <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', margin: '0 0 16px 0', textAlign: 'center' }}>
+                  Dooro muuqaalka aad rabto in aad daawato:
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {tutorialList.map((tut) => (
+                    <div 
+                      key={tut.id} 
+                      onClick={() => setActiveVideo(tut)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '16px', padding: '16px',
+                        background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)', 
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '16px', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(145deg, rgba(99,102,241,0.15) 0%, rgba(255,255,255,0.03) 100%)';
+                        e.currentTarget.style.borderColor = 'rgba(99,102,241,0.5)';
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 8px 25px rgba(99,102,241,0.2)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.1)';
+                      }}
+                    >
+                      <div style={{ 
+                        fontSize: '26px', width: '52px', height: '52px', flexShrink: 0,
+                        background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2))', 
+                        borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        border: '1px solid rgba(139,92,246,0.3)', boxShadow: 'inset 0 2px 10px rgba(255,255,255,0.1)'
+                      }}>
+                        {tut.icon}
+                      </div>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ color: '#fff', fontWeight: 700, fontSize: '15px', letterSpacing: '-0.01em', marginBottom: '4px' }}>{tut.title}</div>
+                        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', fontWeight: 500, marginBottom: '10px' }}>{tut.enTitle}</div>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <span style={{ 
+                            background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', 
+                            padding: '4px 10px', borderRadius: '20px', fontSize: '10px', 
+                            fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em',
+                            display: 'flex', alignItems: 'center', gap: '4px'
+                          }}>
+                            <span style={{ fontSize: '12px' }}>▶</span> Daawo
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ 
+                        width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818cf8', fontSize: '20px', transition: 'all 0.3s'
+                      }}>
+                        ›
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Support Footer */}
+                <div style={{
+                  marginTop: '24px',
+                  padding: '16px',
+                  background: 'rgba(255,255,255,0.03)',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(255,255,255,0.05)'
+                }}>
+                  <p style={{
+                    fontSize: '13px',
+                    color: 'rgba(255,255,255,0.6)',
+                    lineHeight: '1.6',
+                    textAlign: 'center',
+                    margin: 0
+                  }}>
+                    <span style={{ fontWeight: 800, color: '#fff', display: 'block', marginBottom: '4px' }}>Ma u baahan tahay caawinaad?</span>
+                    Hadii cabasho ama wax aad fahmi weysay ay jiraan lasoo xariir telegraamkeena <a href="https://t.me/Somlaandhuu" target="_blank" rel="noopener noreferrer" style={{ color: '#818cf8', fontWeight: 700, textDecoration: 'none' }}>@Somlaandhuu</a> ama soo wac <a href="tel:0610251014" style={{ color: '#818cf8', fontWeight: 700, textDecoration: 'none' }}>0610251014</a>
+                  </p>
+                </div>
+              </div>
+            )}
+            
           </div>
         </div>
       )}

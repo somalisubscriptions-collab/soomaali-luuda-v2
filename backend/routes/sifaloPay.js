@@ -120,7 +120,6 @@ router.post('/sifalo-verify', async (req, res) => {
       effectiveUserId = String(order_id).split('_')[0];
     }
 
-
     if (!sid && !order_id) {
       return res.status(400).json({ success: false, error: 'Transaction ID (sid or order_id) required' });
     }
@@ -137,10 +136,10 @@ router.post('/sifalo-verify', async (req, res) => {
     });
 
     const verifyData = await verifyRes.json();
-    console.log(`[SifaloPay] Verify response for Order:${order_id || 'N/A'} | User:${effectiveUserId || 'N/A'}:`, verifyData);
-
+    console.log(`[SifaloPay] Verify response for Order:${order_id || 'N/A'} | User:${effectiveUserId || 'N/A'} | SID:${sid || 'N/A'}:`, verifyData);
 
     // Be tolerant with provider success formats.
+    // 601 = Success for Sifalo
     const normalizedStatus = String(verifyData.status || '').toLowerCase();
     const normalizedResponse = String(verifyData.response || '').toLowerCase();
     const normalizedCode = String(verifyData.code || '');
@@ -155,6 +154,7 @@ router.post('/sifalo-verify', async (req, res) => {
       normalizedResponse.includes('paid');
 
     if (!isSuccess) {
+      console.warn(`[SifaloPay] Verification failed or not yet completed for Order:${order_id}. Code: ${normalizedCode}, Status: ${normalizedStatus}`);
       return res.json({
         success: false,
         code: verifyData.code,
@@ -165,6 +165,44 @@ router.post('/sifalo-verify', async (req, res) => {
 
     const safeOrderId = order_id || verifyData.order_id || verifyData.orderId || null;
     const safeSid = sid || verifyData.sid || null;
+    const paymentPhone = verifyData.sender_number || verifyData.phone || verifyData.sender || null;
+
+    // --- SMART USER DISCOVERY ---
+    // Try to find who this payment belongs to if effectiveUserId is still unknown (Anonymous Webhook)
+    if (!effectiveUserId) {
+      console.log(`[SifaloPay] Anonymous verification attempt. Searching for user...`);
+      
+      // A) Check for a PENDING request matching the Order ID or SID
+      const matchingReq = await FinancialRequest.findOne({
+        type: 'DEPOSIT',
+        $or: [
+          ...(safeOrderId ? [{ adminComment: { $regex: safeOrderId } }] : []),
+          ...(safeSid ? [{ adminComment: { $regex: safeSid } }] : [])
+        ]
+      });
+
+      if (matchingReq) {
+        effectiveUserId = matchingReq.userId;
+        console.log(`[SifaloPay] Found user ${effectiveUserId} via matching FinancialRequest: ${matchingReq.shortId}`);
+      } 
+      // B) Fallback: Match by Phone Number if provided by Sifalo
+      else if (paymentPhone) {
+        // Normalize phone for comparison
+        const cleanPhone = String(paymentPhone).replace(/\D/g, '').slice(-9); // Last 9 digits
+        const possibleUser = await User.findOne({
+          phone: { $regex: cleanPhone }
+        });
+        if (possibleUser) {
+          effectiveUserId = possibleUser._id;
+          console.log(`[SifaloPay] Found user ${effectiveUserId} via sender phone match: ${paymentPhone}`);
+        }
+      }
+    }
+
+    if (!effectiveUserId) {
+      console.error(`[SifaloPay] CRITICAL: Successful payment but no User ID found! Order:${safeOrderId}, SID:${safeSid}, Phone:${paymentPhone}`);
+      return res.status(404).json({ success: false, error: 'Could not identify user for this payment.' });
+    }
 
     // Fast idempotency guard: if this payment is already approved, return current balance.
     const alreadyApproved = await FinancialRequest.findOne({

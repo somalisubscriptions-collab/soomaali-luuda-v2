@@ -189,21 +189,57 @@ const AppContent: React.FC = () => {
   }, [pendingSifaloOrderId, isAuthenticated, authLoading]);
 
 
+  // --- OneSignal Push Notification Initialization ---
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+
+    const initOneSignal = async () => {
+      try {
+        const OneSignal = (window as any).OneSignal || [];
+        
+        await OneSignal.push(() => {
+          OneSignal.init({
+            appId: "0416f4a4-ca9d-42c6-8106-eb44fa34f0ab",
+            safari_web_id: "web.onesignal.auto.5a5a1f6a-128a-4933-871d-531e21b06385",
+            notifyButton: { enable: false },
+            allowLocalhostAsSecureOrigin: true,
+          });
+        });
+
+        // Get Player ID and save to backend
+        OneSignal.push(async () => {
+          const playerId = await OneSignal.getUserId();
+          if (playerId) {
+            console.log('🔔 OneSignal Player ID:', playerId);
+            const token = localStorage.getItem('ludo_token');
+            await fetch(`${API_URL}/notifications/player-id`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ playerId })
+            });
+          }
+        });
+      } catch (err) {
+        console.error('❌ OneSignal Init Error:', err);
+      }
+    };
+
+    initOneSignal();
+  }, [isAuthenticated, user]);
+
   // Unlock audio and request PUSH NOTIFICATION permissions on first user interaction
   useEffect(() => {
     const handler = () => {
       audioService.unlock();
-      // Optionally play a tiny confirmation click (muted unlock won't be audible)
-      try {
-        audioService.play('click');
-      } catch (e) {
-        // ignore
-      }
-
-      // Ask for Facebook-style system push notifications
-      if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission().then((permission) => {
-          console.log('🔔 Push Notification permission:', permission);
+      
+      // Request OneSignal Permission explicitly on first tap
+      const OneSignal = (window as any).OneSignal;
+      if (OneSignal) {
+        OneSignal.push(() => {
+          OneSignal.showNativePrompt();
         });
       }
 
