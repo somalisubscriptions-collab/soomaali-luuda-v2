@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 const ONESIGNAL_APP_ID = '0416f4a4-ca9d-42c6-8106-eb44fa34f0ab';
-const ONESIGNAL_API_KEY = 'os_v2_app_aqlpjjgktvbmnaig5ncpunhqvotbzj3axr4uji5gd2dqxp2ad5cm3fvebqspyw62sbbfvr2mdpoyjvdvfrgfyxfzrmhby4t7vbdhopq';
+const ONESIGNAL_API_KEY = 'os_v2_app_aqlpjjgktvbmnaig5ncpunhqvnjfdxdpvmge265rltebtneuyy3thdrcss2gnuwaqhe7kc6yckuu3ohidrqy4pw23qr4jbzhq6g6qvi';
 
 async function test() {
   try {
@@ -13,9 +13,8 @@ async function test() {
       url: 'https://laadhuu.online'
     };
 
-    const response = await axios.post(
-      'https://api.onesignal.com/notifications',
-      notificationBody,
+    const response = await axios.get(
+      `https://onesignal.com/api/v1/apps/${ONESIGNAL_APP_ID}`,
       {
         headers: {
           'Content-Type': 'application/json',
