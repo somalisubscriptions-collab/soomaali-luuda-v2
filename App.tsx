@@ -206,22 +206,40 @@ const AppContent: React.FC = () => {
           });
         });
 
-        // Get Player ID and save to backend
+        const savePlayerId = async (playerId: string) => {
+          console.log('🔔 Attempting to sync OneSignal ID:', playerId);
+          const token = localStorage.getItem('ludo_token');
+          await fetch(`${API_URL}/notifications/player-id`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ playerId })
+          });
+          console.log('✅ OneSignal ID synced successfully.');
+        };
+
+        // 1. Check if they already have an ID
         OneSignal.push(async () => {
           const playerId = await OneSignal.getUserId();
           if (playerId) {
-            console.log('🔔 OneSignal Player ID:', playerId);
-            const token = localStorage.getItem('ludo_token');
-            await fetch(`${API_URL}/notifications/player-id`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({ playerId })
-            });
+            await savePlayerId(playerId);
           }
         });
+
+        // 2. Listen for when they click "Allow" (Subscription Change)
+        OneSignal.push(() => {
+          OneSignal.on('subscriptionChange', async (isSubscribed: boolean) => {
+            if (isSubscribed) {
+              const playerId = await OneSignal.getUserId();
+              if (playerId) {
+                await savePlayerId(playerId);
+              }
+            }
+          });
+        });
+
       } catch (err) {
         console.error('❌ OneSignal Init Error:', err);
       }
