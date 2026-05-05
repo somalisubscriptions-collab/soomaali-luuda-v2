@@ -1040,7 +1040,7 @@ app.post('/api/notifications/broadcast', authenticateToken, authorizeAdmin, asyn
 
     const notificationBody = {
       app_id: ONESIGNAL_APP_ID,
-      included_segments: ['All'],
+      included_segments: ['Subscribed Users'],
       headings: { en: title },
       contents: { en: message },
       url: url || process.env.FRONTEND_URL || 'https://laadhuu.online',
@@ -1053,7 +1053,7 @@ app.post('/api/notifications/broadcast', authenticateToken, authorizeAdmin, asyn
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Key ${ONESIGNAL_API_KEY}`
+          'Authorization': `Basic ${ONESIGNAL_API_KEY}`
         }
       }
     );
