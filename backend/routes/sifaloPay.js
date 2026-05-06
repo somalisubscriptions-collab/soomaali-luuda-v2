@@ -221,10 +221,6 @@ router.get('/sifalo-return', async (req, res) => {
   // --- Step 4: Credit user in the background (fire-and-forget) ---
   setImmediate(async () => {
     try {
-
-  // --- Step 4: Credit user in the background (fire-and-forget) ---
-  setImmediate(async () => {
-    try {
       const safeOrderId = order_id || verifyData.order_id || null;
       const safeSid = sid || verifyData.sid || null;
 
