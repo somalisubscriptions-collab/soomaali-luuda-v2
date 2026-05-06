@@ -46,7 +46,8 @@ router.post('/sifalo-checkout', async (req, res) => {
 
     // Build return URL — app catches ?sifalo_deposit=1&order_id=... on return
     const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
-    const backendUrl = (process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\/$/, '');
+    // If BACKEND_URL is not explicitly set in production, use the frontend URL (since Nginx proxies /api)
+    const backendUrl = (process.env.BACKEND_URL || (frontendUrl.includes('localhost') ? `http://localhost:${process.env.PORT || 5000}` : frontendUrl)).replace(/\/$/, '');
     
     // Use the backend as a proxy for the return URL to avoid CORS issues on the static frontend
     const returnUrl = `${backendUrl}/api/wallet/sifalo-return?order_id=${orderId}`;
