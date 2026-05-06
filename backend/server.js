@@ -475,9 +475,12 @@ app.use('/api/gems', authenticateToken, gemsRoutes);
 
 // Sifalo Pay payment gateway routes
 const sifaloPay = require('./routes/sifaloPay');
-// Allow Sifalo verification without token (for webhooks/IPN)
+// Allow Sifalo verification without token (for webhooks/IPN) and sifalo-return (public redirect)
 app.use('/api/wallet', (req, res, next) => {
   if (req.path === '/sifalo-verify' && req.method === 'POST') {
+    return next();
+  }
+  if (req.path.startsWith('/sifalo-return') && req.method === 'GET') {
     return next();
   }
   authenticateToken(req, res, next);
