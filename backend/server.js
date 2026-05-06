@@ -203,6 +203,7 @@ const io = new Server(server, {
 app.set('io', io);
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // Added to support form-urlencoded webhooks
 app.use(require('cookie-parser')());
 
 // ===== USSD AUTOMATION ROUTES =====

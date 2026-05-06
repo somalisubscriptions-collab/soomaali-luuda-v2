@@ -1,33 +1,28 @@
-const axios = require('axios');
+const https = require('https');
 
-const ONESIGNAL_APP_ID = '0416f4a4-ca9d-42c6-8106-eb44fa34f0ab';
-const ONESIGNAL_API_KEY = 'os_v2_app_aqlpjjgktvbmnaig5ncpunhqvnjfdxdpvmge265rltebtneuyy3thdrcss2gnuwaqhe7kc6yckuu3ohidrqy4pw23qr4jbzhq6g6qvi';
+const data = JSON.stringify({
+  app_id: '0416f4a4-ca9d-42c6-8106-eb44fa34f0ab',
+  included_segments: ['Subscribed Users'],
+  contents: { en: 'Test' }
+});
 
-async function test() {
-  try {
-    const notificationBody = {
-      app_id: ONESIGNAL_APP_ID,
-      included_segments: ['Subscribed Users'],
-      headings: { en: 'Test Title' },
-      contents: { en: 'Test Message' },
-      url: 'https://laadhuu.online'
-    };
-
-    const response = await axios.get(
-      `https://onesignal.com/api/v1/apps/${ONESIGNAL_APP_ID}`,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${ONESIGNAL_API_KEY}`
-        }
-      }
-    );
-
-    console.log('✅ Broadcast sent:', response.data);
-  } catch (error) {
-    const detail = error.response?.data || error.message || 'Unknown error';
-    console.error('Broadcast notification error:', JSON.stringify(detail, null, 2));
+const options = {
+  hostname: 'api.onesignal.com',
+  port: 443,
+  path: '/notifications',
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Basic os_v2_app_aqlpjjgktvbmnaig5ncpunhqvoxemxnx4j2e2wvnwmdifmmssqurcqznmwhhhf4jrkwqutkgo4wf36fgyvqrossks5yksaf3zh2mrvq'
   }
-}
+};
 
-test();
+const req = https.request(options, res => {
+  let body = '';
+  res.on('data', d => body += d);
+  res.on('end', () => console.log('Response:', body));
+});
+
+req.on('error', error => console.error(error));
+req.write(data);
+req.end();

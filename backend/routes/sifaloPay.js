@@ -48,6 +48,10 @@ router.post('/sifalo-checkout', async (req, res) => {
     const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
     const returnUrl = `${frontendUrl}/?sifalo_deposit=1&order_id=${orderId}`;
 
+    // Build notify URL using BACKEND_URL (must be publicly reachable by Sifalo's servers)
+    const backendUrl = (process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\/$/, '');
+    const notifyUrl = `${backendUrl}/api/wallet/sifalo-verify`;
+
     // Call Sifalo Pay checkout init
     const sifaloRes = await fetch(SIFALO_API_URL, {
       method: 'POST',
@@ -60,10 +64,9 @@ router.post('/sifalo-checkout', async (req, res) => {
         gateway: 'checkout',
         currency: 'USD',
         return_url: returnUrl,
-        notify_url: returnUrl.split('?')[0].replace(/\/$/, '') + '/api/wallet/sifalo-verify', // Tentative webhook guess
+        notify_url: notifyUrl,
         order_id: orderId,
       }),
-
     });
 
     // Save a PENDING request to track the exact requested amount before gateway fees
@@ -112,34 +115,50 @@ router.post('/sifalo-checkout', async (req, res) => {
 // ──────────────────────────────────────────────
 router.post('/sifalo-verify', async (req, res) => {
   try {
-    const { sid, order_id, userId } = req.body;
+    const { sid, order_id, userId, orderId: bodyOrderId } = req.body;
     
     // Robust User ID resolution: from body, from authenticated user, or parsed from order_id (userId_timestamp)
     let effectiveUserId = userId || req.user?.userId;
-    if (!effectiveUserId && order_id && String(order_id).includes('_')) {
-      effectiveUserId = String(order_id).split('_')[0];
+    const actualOrderId = order_id || bodyOrderId;
+
+    if (!effectiveUserId && actualOrderId && String(actualOrderId).includes('_')) {
+      effectiveUserId = String(actualOrderId).split('_')[0];
     }
 
-    if (!sid && !order_id) {
+    if (!sid && !actualOrderId) {
+      console.warn('[SifaloPay] Verification attempt with no identifiers in body:', req.body);
       return res.status(400).json({ success: false, error: 'Transaction ID (sid or order_id) required' });
     }
 
     // Call Sifalo Pay verify endpoint
-    const verifyBody = sid ? { sid } : { order_id };
-    const verifyRes = await fetch(SIFALO_VERIFY_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': getAuthHeader(),
-      },
-      body: JSON.stringify(verifyBody),
-    });
+    const verifyBody = sid ? { sid } : { order_id: actualOrderId };
+    
+    let verifyData = {};
+    try {
+      const verifyRes = await fetch(SIFALO_VERIFY_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': getAuthHeader(),
+        },
+        body: JSON.stringify(verifyBody),
+      });
 
-    const verifyData = await verifyRes.json();
-    console.log(`[SifaloPay] Verify response for Order:${order_id || 'N/A'} | User:${effectiveUserId || 'N/A'} | SID:${sid || 'N/A'}:`, verifyData);
+      if (!verifyRes.ok) {
+        const errText = await verifyRes.text();
+        console.error(`[SifaloPay] Gateway returned error ${verifyRes.status}:`, errText);
+        throw new Error(`Gateway Error: ${verifyRes.status}`);
+      }
+
+      verifyData = await verifyRes.json();
+    } catch (fetchErr) {
+      console.error('[SifaloPay] API Fetch Error:', fetchErr.message);
+      return res.status(502).json({ success: false, error: 'Payment gateway is currently unreachable' });
+    }
+
+    console.log(`[SifaloPay] Verify response for Order:${actualOrderId || 'N/A'} | User:${effectiveUserId || 'N/A'}:`, verifyData);
 
     // Be tolerant with provider success formats.
-    // 601 = Success for Sifalo
     const normalizedStatus = String(verifyData.status || '').toLowerCase();
     const normalizedResponse = String(verifyData.response || '').toLowerCase();
     const normalizedCode = String(verifyData.code || '');
@@ -154,7 +173,7 @@ router.post('/sifalo-verify', async (req, res) => {
       normalizedResponse.includes('paid');
 
     if (!isSuccess) {
-      console.warn(`[SifaloPay] Verification failed or not yet completed for Order:${order_id}. Code: ${normalizedCode}, Status: ${normalizedStatus}`);
+      console.warn(`[SifaloPay] Verification failed/pending for Order:${actualOrderId}. Code: ${normalizedCode}`);
       return res.json({
         success: false,
         code: verifyData.code,
@@ -163,62 +182,65 @@ router.post('/sifalo-verify', async (req, res) => {
       });
     }
 
-    const safeOrderId = order_id || verifyData.order_id || verifyData.orderId || null;
+    const safeOrderId = actualOrderId || verifyData.order_id || verifyData.orderId || null;
     const safeSid = sid || verifyData.sid || null;
     const paymentPhone = verifyData.sender_number || verifyData.phone || verifyData.sender || null;
 
     // --- SMART USER DISCOVERY ---
-    // Try to find who this payment belongs to if effectiveUserId is still unknown (Anonymous Webhook)
     if (!effectiveUserId) {
-      console.log(`[SifaloPay] Anonymous verification attempt. Searching for user...`);
+      console.log(`[SifaloPay] Anonymous verification. Searching for user...`);
       
-      // A) Check for a PENDING request matching the Order ID or SID
-      const matchingReq = await FinancialRequest.findOne({
-        type: 'DEPOSIT',
-        $or: [
-          ...(safeOrderId ? [{ adminComment: { $regex: safeOrderId } }] : []),
-          ...(safeSid ? [{ adminComment: { $regex: safeSid } }] : [])
-        ]
-      });
+      const queryArr = [];
+      if (safeOrderId) queryArr.push({ adminComment: { $regex: safeOrderId } });
+      if (safeSid) queryArr.push({ adminComment: { $regex: safeSid } });
 
-      if (matchingReq) {
-        effectiveUserId = matchingReq.userId;
-        console.log(`[SifaloPay] Found user ${effectiveUserId} via matching FinancialRequest: ${matchingReq.shortId}`);
-      } 
-      // B) Fallback: Match by Phone Number if provided by Sifalo
-      else if (paymentPhone) {
-        // Normalize phone for comparison
-        const cleanPhone = String(paymentPhone).replace(/\D/g, '').slice(-9); // Last 9 digits
-        const possibleUser = await User.findOne({
-          phone: { $regex: cleanPhone }
+      if (queryArr.length > 0) {
+        const matchingReq = await FinancialRequest.findOne({
+          type: 'DEPOSIT',
+          $or: queryArr
         });
-        if (possibleUser) {
-          effectiveUserId = possibleUser._id;
-          console.log(`[SifaloPay] Found user ${effectiveUserId} via sender phone match: ${paymentPhone}`);
+
+        if (matchingReq) {
+          effectiveUserId = matchingReq.userId;
+          console.log(`[SifaloPay] Found user ${effectiveUserId} via matching FinancialRequest`);
+        } 
+      }
+      
+      if (!effectiveUserId && paymentPhone) {
+        const cleanPhone = String(paymentPhone).replace(/\D/g, '').slice(-9);
+        if (cleanPhone.length >= 7) {
+          const possibleUser = await User.findOne({ phone: { $regex: cleanPhone } });
+          if (possibleUser) {
+            effectiveUserId = possibleUser._id;
+            console.log(`[SifaloPay] Found user ${effectiveUserId} via phone match: ${paymentPhone}`);
+          }
         }
       }
     }
 
     if (!effectiveUserId) {
-      console.error(`[SifaloPay] CRITICAL: Successful payment but no User ID found! Order:${safeOrderId}, SID:${safeSid}, Phone:${paymentPhone}`);
+      console.error(`[SifaloPay] CRITICAL: Successful payment but no User found! Order:${safeOrderId}, SID:${safeSid}`);
       return res.status(404).json({ success: false, error: 'Could not identify user for this payment.' });
     }
 
-    // Fast idempotency guard: if this payment is already approved, return current balance.
-    const alreadyApproved = await FinancialRequest.findOne({
-      type: 'DEPOSIT',
-      status: 'APPROVED',
-      $or: [
-        ...(safeOrderId ? [{ adminComment: { $regex: `sifalo_order:${safeOrderId}` } }] : []),
-        ...(safeSid ? [{ adminComment: { $regex: `SID:\\s*${safeSid}` } }] : []),
-      ],
-    });
-    if (alreadyApproved) {
-      const user = await User.findById(alreadyApproved.userId);
-      return res.json({ success: true, alreadyProcessed: true, newBalance: user?.balance || 0 });
+    // Fast idempotency guard
+    const queryAlready = [];
+    if (safeOrderId) queryAlready.push({ adminComment: { $regex: `sifalo_order:${safeOrderId}` } });
+    if (safeSid) queryAlready.push({ adminComment: { $regex: `SID:\\s*${safeSid}` } });
+
+    if (queryAlready.length > 0) {
+      const alreadyApproved = await FinancialRequest.findOne({
+        type: 'DEPOSIT',
+        status: 'APPROVED',
+        $or: queryAlready
+      });
+      if (alreadyApproved) {
+        const user = await User.findById(alreadyApproved.userId);
+        return res.json({ success: true, alreadyProcessed: true, newBalance: user?.balance || 0 });
+      }
     }
 
-    // Find matching pending request with multiple fallbacks.
+    // Find matching pending request
     let pendingRequest = null;
     if (safeOrderId) {
       pendingRequest = await FinancialRequest.findOne({
@@ -229,8 +251,6 @@ router.post('/sifalo-verify', async (req, res) => {
     }
 
     if (!pendingRequest && effectiveUserId) {
-      // Fallback: most recent pending deposit for this user.
-      // Broadened to find ANY pending deposit if the user chose to pay via Sifalo.
       pendingRequest = await FinancialRequest.findOne({
         userId: String(effectiveUserId),
         status: 'PENDING',
@@ -238,46 +258,44 @@ router.post('/sifalo-verify', async (req, res) => {
       }).sort({ timestamp: -1 });
     }
 
-
-    // Credit the player's balance with the verified amount
+    // Determine amount to credit
     let paidAmount = parseFloat(verifyData.amount) || 0;
 
-    // Use the original requested amount if available so the player isn't penalized by gateway fee deductions.
     if (pendingRequest && pendingRequest.amount > paidAmount) {
-      // Allow up to a 25% difference or $0.50 fixed diff for gateway fees to prevent spoofing
-      const maxAllowed = paidAmount * 1.25;
-      const isWithinTolerance = pendingRequest.amount <= maxAllowed || (pendingRequest.amount - paidAmount) <= 0.50;
-      
+      const isWithinTolerance = pendingRequest.amount <= (paidAmount * 1.25) || (pendingRequest.amount - paidAmount) <= 0.50;
       if (isWithinTolerance) {
-        console.log(`[SifaloPay] Adjusting credited amount from ${paidAmount} to original requested ${pendingRequest.amount} to cover fees.`);
         paidAmount = pendingRequest.amount;
-      } else {
-        console.warn(`[SifaloPay] WARNING: Pending amount ${pendingRequest.amount} is significantly higher than verified amount ${paidAmount}. Potential spoofing. Using verified amount.`);
       }
     } else if (pendingRequest && pendingRequest.amount > 0 && pendingRequest.amount <= paidAmount) {
       paidAmount = pendingRequest.amount;
     }
 
     if (paidAmount <= 0) {
-      return res.status(400).json({ success: false, error: 'Invalid verified amount from payment gateway' });
+      return res.status(400).json({ success: false, error: 'Invalid verified amount from gateway' });
     }
 
-    const creditUserId = pendingRequest?.userId || String(effectiveUserId || '');
-    if (!creditUserId) {
-      return res.status(400).json({ success: false, error: 'User ID missing for auto-credit' });
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      creditUserId,
-      { $inc: { balance: paidAmount } },
-      { new: true }
-    );
-
+    const creditUserId = pendingRequest?.userId || String(effectiveUserId);
+    
+    // --- UPDATING USER BALANCE & ADDING TRANSACTION ENTRY ---
+    const updatedUser = await User.findById(creditUserId);
     if (!updatedUser) {
       return res.status(404).json({ success: false, error: 'User account not found' });
     }
 
-    // Mark existing request as APPROVED, or create one if checkout no longer pre-creates pending.
+    updatedUser.balance = (updatedUser.balance || 0) + paidAmount;
+    
+    // ADD TRANSACTION RECORD (Crucial for user visibility)
+    if (!updatedUser.transactions) updatedUser.transactions = [];
+    updatedUser.transactions.push({
+      type: 'deposit',
+      amount: paidAmount,
+      description: `Sifalo Pay Deposit | SID: ${safeSid || 'N/A'}`,
+      createdAt: new Date()
+    });
+
+    await updatedUser.save();
+
+    // Mark existing request as APPROVED or create one
     if (pendingRequest) {
       pendingRequest.status = 'APPROVED';
       pendingRequest.approverName = 'Sifalo Pay (Auto)';
@@ -289,21 +307,21 @@ router.post('/sifalo-verify', async (req, res) => {
       const lastRequest = await FinancialRequest.findOne().sort({ shortId: -1 }).select('shortId');
       const nextShortId = (lastRequest?.shortId || 1000) + 1;
       await FinancialRequest.create({
-        userId: updatedUser._id.toString(),
+        userId: updatedUser._id,
         userName: updatedUser.username,
         shortId: nextShortId,
         type: 'DEPOSIT',
         paymentMethod: 'Sifalo Pay',
         amount: paidAmount,
         status: 'APPROVED',
-        details: `Sifalo Pay Checkout | ${updatedUser.username} | Phone: ${updatedUser.phone || ''}`,
+        details: `Sifalo Pay Checkout | ${updatedUser.username}`,
         approverName: 'Sifalo Pay (Auto)',
         processedBy: 'sifalo_auto',
         adminComment: `Auto-approved | SID: ${safeSid || 'N/A'} | Method: ${verifyData.payment_type || 'checkout'}${safeOrderId ? ` | sifalo_order:${safeOrderId}` : ''}`,
       });
     }
 
-    console.log(`✅ [SifaloPay] Auto-credited $${paidAmount} to ${updatedUser.username}. New balance: $${updatedUser.balance}`);
+    console.log(`✅ [SifaloPay] Auto-credited $${paidAmount} to ${updatedUser.username}.`);
 
     res.json({
       success: true,
@@ -313,7 +331,7 @@ router.post('/sifalo-verify', async (req, res) => {
       paymentType: verifyData.payment_type || 'Sifalo Pay',
     });
   } catch (error) {
-    console.error('[SifaloPay] /sifalo-verify error:', error.message);
+    console.error('[SifaloPay] /sifalo-verify error:', error);
     res.status(500).json({ success: false, error: 'Failed to verify payment. Contact support.' });
   }
 });
