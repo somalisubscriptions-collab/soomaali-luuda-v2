@@ -118,8 +118,13 @@ router.post('/sifalo-checkout', async (req, res) => {
 // ──────────────────────────────────────────────
 // GET /api/wallet/sifalo-return
 // Acts as a proxy to redirect users back to the frontend with correct params.
-// This avoids CORS issues when the gateway tries to fetch/redirect to the static frontend.
+// We use an HTML redirect instead of a 302 to prevent Sifalo's fetch() from failing due to CORS.
 router.get('/sifalo-return', (req, res) => {
+  // Explicitly set CORS headers to satisfy Sifalo's background fetch
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+
   const { order_id, sid } = req.query;
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
   
@@ -128,8 +133,24 @@ router.get('/sifalo-return', (req, res) => {
   if (order_id) redirectUrl += `&order_id=${order_id}`;
   if (sid) redirectUrl += `&sid=${sid}`;
   
-  console.log(`[SifaloPay] Proxy redirecting user to frontend: ${redirectUrl}`);
-  res.redirect(redirectUrl);
+  console.log(`[SifaloPay] Proxy returning HTML redirect to frontend: ${redirectUrl}`);
+  
+  // Return an HTML response so fetch() gets a 200 OK, and the browser window redirects.
+  res.status(200).send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta http-equiv="refresh" content="0;url=${redirectUrl}">
+        <title>Returning to Game...</title>
+        <script>
+          window.location.href = "${redirectUrl}";
+        </script>
+      </head>
+      <body style="background-color: #121212; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif;">
+        <h2>Payment Processed. Redirecting back to game...</h2>
+      </body>
+    </html>
+  `);
 });
 
 router.post('/sifalo-verify', async (req, res) => {
