@@ -4,6 +4,9 @@ const router = express.Router();
 const User = require('../models/User');
 const FinancialRequest = require('../models/FinancialRequest');
 
+// io is injected via module.exports(io) pattern — see bottom of file
+let _io = null;
+
 const SIFALO_API_URL = 'https://api.sifalopay.com/gateway/';
 const SIFALO_VERIFY_URL = 'https://api.sifalopay.com/gateway/verify.php';
 
@@ -301,6 +304,21 @@ router.get('/sifalo-return', async (req, res) => {
 
     console.log(`✅ [SifaloPay] sifalo-return: credited $${paidAmount} to ${updatedUser.username}`);
 
+    // Emit real-time balance update so the user's app shows success even if Sifalo shows "Payment Unsuccessful"
+    try {
+      if (_io) {
+        _io.to(String(updatedUser._id)).emit('BALANCE_CREDITED', {
+          amount: paidAmount,
+          newBalance: updatedUser.balance,
+          type: 'DEPOSIT',
+          message: `✅ $${paidAmount.toFixed(2)} si toos ah loo dhigay! (Sifalo Pay)`,
+        });
+        console.log(`[SifaloPay] Emitted BALANCE_CREDITED to user ${updatedUser._id}`);
+      }
+    } catch (emitErr) {
+      console.warn('[SifaloPay] Could not emit socket event:', emitErr.message);
+    }
+
     // Return success to Sifalo — this is what makes it show "Payment Successful" ✅
     return res.status(200).json({
       success: true,
@@ -543,4 +561,10 @@ router.post('/sifalo-verify', async (req, res) => {
   }
 });
 
-module.exports = router;
+// Export as a function that accepts io, so we can emit real-time events
+module.exports = (io) => {
+  _io = io;
+  return router;
+};
+// Also support plain require() without io (fallback)
+module.exports.router = router;

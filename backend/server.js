@@ -484,7 +484,7 @@ app.use('/api/wallet', (req, res, next) => {
     return next();
   }
   authenticateToken(req, res, next);
-}, sifaloPay);
+}, sifaloPay(io));
 
 
 
