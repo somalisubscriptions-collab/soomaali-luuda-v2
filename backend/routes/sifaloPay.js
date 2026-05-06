@@ -45,12 +45,9 @@ router.post('/sifalo-checkout', async (req, res) => {
     const orderId = `${userId}_${Date.now()}`;
 
     // Build return URL — app catches ?sifalo_deposit=1&order_id=... on return
+    // This targets the frontend directly, which is protected by the Nginx CORS headers we added earlier.
     const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
-    // If BACKEND_URL is not explicitly set in production, use the frontend URL (since Nginx proxies /api)
-    const backendUrl = (process.env.BACKEND_URL || (frontendUrl.includes('localhost') ? `http://localhost:${process.env.PORT || 5000}` : frontendUrl)).replace(/\/$/, '');
-    
-    // Use the backend as a proxy for the return URL to avoid CORS issues on the static frontend
-    const returnUrl = `${backendUrl}/api/wallet/sifalo-return?order_id=${orderId}`;
+    const returnUrl = `${frontendUrl}/?sifalo_deposit=1&order_id=${orderId}`;
 
     // Build notify URL using BACKEND_URL (must be publicly reachable by Sifalo's servers)
     const notifyUrl = `${backendUrl}/api/wallet/sifalo-verify`;
@@ -116,43 +113,9 @@ router.post('/sifalo-checkout', async (req, res) => {
 // Called after the player returns from the Sifalo Pay checkout page.
 // Verifies the transaction and — if successful — credits the player's balance automatically.
 // ──────────────────────────────────────────────
-// GET /api/wallet/sifalo-return
-// Acts as a proxy to redirect users back to the frontend with correct params.
-// We use an HTML redirect instead of a 302 to prevent Sifalo's fetch() from failing due to CORS.
-router.get('/sifalo-return', (req, res) => {
-  // Explicitly set CORS headers to satisfy Sifalo's background fetch
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-
-  const { order_id, sid } = req.query;
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-  
-  // Construct the final frontend URL
-  let redirectUrl = `${frontendUrl}/?sifalo_deposit=1`;
-  if (order_id) redirectUrl += `&order_id=${order_id}`;
-  if (sid) redirectUrl += `&sid=${sid}`;
-  
-  console.log(`[SifaloPay] Proxy returning HTML redirect to frontend: ${redirectUrl}`);
-  
-  // Return an HTML response so fetch() gets a 200 OK, and the browser window redirects.
-  res.status(200).send(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta http-equiv="refresh" content="0;url=${redirectUrl}">
-        <title>Returning to Game...</title>
-        <script>
-          window.location.href = "${redirectUrl}";
-        </script>
-      </head>
-      <body style="background-color: #121212; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif;">
-        <h2>Payment Processed. Redirecting back to game...</h2>
-      </body>
-    </html>
-  `);
-});
-
+// POST /api/wallet/sifalo-verify
+// Webhook endpoint called by Sifalo to verify payment status
+// ──────────────────────────────────────────────
 router.post('/sifalo-verify', async (req, res) => {
   try {
     const { sid, order_id, userId, orderId: bodyOrderId } = req.body;
