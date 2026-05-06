@@ -126,28 +126,41 @@ router.get('/sifalo-return', (req, res) => {
 
   const { order_id, sid } = req.query;
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-  
+
   let redirectUrl = `${frontendUrl}/?sifalo_deposit=1`;
   if (order_id) redirectUrl += `&order_id=${order_id}`;
   if (sid) redirectUrl += `&sid=${sid}`;
-  
-  console.log(`[SifaloPay] Proxy returning HTML redirect to frontend: ${redirectUrl}`);
-  
-  res.status(200).send(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta http-equiv="refresh" content="0;url=${redirectUrl}">
-        <title>Returning to Game...</title>
-        <script>
-          window.location.href = "${redirectUrl}";
-        </script>
-      </head>
-      <body style="background-color: #121212; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif;">
-        <h2>Payment Processed. Redirecting back to game...</h2>
-      </body>
-    </html>
-  `);
+
+  console.log(`[SifaloPay] sifalo-return hit. order_id=${order_id}, sid=${sid}`);
+
+  // Detect if this is Sifalo's background fetch() or a real browser navigation.
+  // Sifalo's fetch() does NOT send a text/html Accept header.
+  // A real browser navigation sends Accept: text/html,...
+  const acceptHeader = req.headers['accept'] || '';
+  const secFetchDest = req.headers['sec-fetch-dest'] || '';
+  const isBrowserNavigation = secFetchDest === 'document' || acceptHeader.includes('text/html');
+
+  if (isBrowserNavigation) {
+    // Real browser: serve HTML page that immediately redirects the user to the frontend app
+    console.log(`[SifaloPay] Browser navigation detected — serving HTML redirect to: ${redirectUrl}`);
+    res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta http-equiv="refresh" content="0;url=${redirectUrl}">
+          <title>Returning to Game...</title>
+          <script>window.location.href = "${redirectUrl}";</script>
+        </head>
+        <body style="background-color:#121212;color:white;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;">
+          <h2>✅ Payment Processed. Returning to game...</h2>
+        </body>
+      </html>
+    `);
+  } else {
+    // Sifalo's background fetch(): return JSON so it doesn't crash parsing our response
+    console.log(`[SifaloPay] Fetch() detected — returning JSON success to Sifalo`);
+    res.status(200).json({ success: true, redirect: redirectUrl });
+  }
 });
 
 // ──────────────────────────────────────────────
