@@ -115,11 +115,11 @@ router.post('/sifalo-checkout', async (req, res) => {
 // Verifies the transaction and — if successful — credits the player's balance automatically.
 // ──────────────────────────────────────────────
 // GET /api/wallet/sifalo-return
-// Acts as a proxy to redirect users back to the frontend with correct params.
-// We use an HTML redirect (200 OK) instead of a 302 to prevent Sifalo's fetch() from failing 
-// due to CORS or Cloudflare 301 redirects on the frontend domain.
+// Sifalo's mobile checkout JS fetches this URL after the user enters their PIN.
+// The response from this endpoint drives Sifalo's "Payment Successful" / "Unsuccessful" UI.
+// So we must ACTUALLY verify the payment here and credit the user before responding.
 // ──────────────────────────────────────────────
-router.get('/sifalo-return', (req, res) => {
+router.get('/sifalo-return', async (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
@@ -134,16 +134,14 @@ router.get('/sifalo-return', (req, res) => {
   console.log(`[SifaloPay] sifalo-return hit. order_id=${order_id}, sid=${sid}`);
 
   // Detect if this is Sifalo's background fetch() or a real browser navigation.
-  // Sifalo's fetch() does NOT send a text/html Accept header.
-  // A real browser navigation sends Accept: text/html,...
   const acceptHeader = req.headers['accept'] || '';
   const secFetchDest = req.headers['sec-fetch-dest'] || '';
   const isBrowserNavigation = secFetchDest === 'document' || acceptHeader.includes('text/html');
 
   if (isBrowserNavigation) {
-    // Real browser: serve HTML page that immediately redirects the user to the frontend app
-    console.log(`[SifaloPay] Browser navigation detected — serving HTML redirect to: ${redirectUrl}`);
-    res.status(200).send(`
+    // Real browser navigation: redirect user back to frontend app
+    console.log(`[SifaloPay] Browser navigation — HTML redirect to: ${redirectUrl}`);
+    return res.status(200).send(`
       <!DOCTYPE html>
       <html>
         <head>
@@ -156,10 +154,165 @@ router.get('/sifalo-return', (req, res) => {
         </body>
       </html>
     `);
-  } else {
-    // Sifalo's background fetch(): return JSON so it doesn't crash parsing our response
-    console.log(`[SifaloPay] Fetch() detected — returning JSON success to Sifalo`);
-    res.status(200).json({ success: true, redirect: redirectUrl });
+  }
+
+  // ── Sifalo's background fetch() ──
+  // We must verify the payment and credit the user HERE so Sifalo gets an accurate status.
+  console.log(`[SifaloPay] Fetch() from Sifalo — verifying payment now...`);
+
+  try {
+    if (!sid && !order_id) {
+      return res.status(400).json({ success: false, error: 'Missing sid or order_id' });
+    }
+
+    // --- Step 1: Call Sifalo verify API ---
+    const verifyBody = sid ? { sid } : { order_id };
+    let verifyData = {};
+    try {
+      const verifyRes = await fetch(SIFALO_VERIFY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': getAuthHeader() },
+        body: JSON.stringify(verifyBody),
+      });
+      if (!verifyRes.ok) throw new Error(`Gateway ${verifyRes.status}`);
+      verifyData = await verifyRes.json();
+    } catch (fetchErr) {
+      console.error('[SifaloPay] sifalo-return verify fetch error:', fetchErr.message);
+      return res.status(502).json({ success: false, error: 'Gateway unreachable' });
+    }
+
+    console.log(`[SifaloPay] sifalo-return verify response:`, verifyData);
+
+    // --- Step 2: Check if payment succeeded ---
+    const normalizedStatus = String(verifyData.status || '').toLowerCase();
+    const normalizedResponse = String(verifyData.response || '').toLowerCase();
+    const normalizedCode = String(verifyData.code || '');
+    const isSuccess =
+      normalizedCode === '601' ||
+      normalizedStatus === 'success' ||
+      normalizedStatus === 'approved' ||
+      normalizedStatus === 'completed' ||
+      normalizedResponse.includes('success') ||
+      normalizedResponse.includes('approved') ||
+      normalizedResponse.includes('paid');
+
+    if (!isSuccess) {
+      console.warn(`[SifaloPay] sifalo-return: payment not confirmed. Code=${normalizedCode}, Status=${normalizedStatus}`);
+      return res.status(200).json({
+        success: false,
+        status: verifyData.status || 'failed',
+        code: verifyData.code,
+        error: verifyData.response || 'Payment not completed',
+      });
+    }
+
+    // --- Step 3: Identify user ---
+    let effectiveUserId = null;
+    const safeOrderId = order_id || verifyData.order_id || null;
+    const safeSid = sid || verifyData.sid || null;
+
+    if (safeOrderId && String(safeOrderId).includes('_')) {
+      effectiveUserId = String(safeOrderId).split('_')[0];
+    }
+
+    if (!effectiveUserId) {
+      const matchingReq = await FinancialRequest.findOne({
+        type: 'DEPOSIT',
+        $or: [
+          safeOrderId ? { adminComment: { $regex: safeOrderId } } : null,
+          safeSid ? { adminComment: { $regex: safeSid } } : null,
+        ].filter(Boolean)
+      });
+      if (matchingReq) effectiveUserId = matchingReq.userId;
+    }
+
+    if (!effectiveUserId) {
+      console.error(`[SifaloPay] sifalo-return: payment confirmed but no user found! order=${safeOrderId}`);
+      return res.status(200).json({ success: true, warning: 'Payment confirmed but user not found. Contact support.' });
+    }
+
+    // --- Step 4: Idempotency guard ---
+    const alreadyApproved = await FinancialRequest.findOne({
+      type: 'DEPOSIT',
+      status: 'APPROVED',
+      $or: [
+        safeOrderId ? { adminComment: { $regex: `sifalo_order:${safeOrderId}` } } : null,
+        safeSid ? { adminComment: { $regex: `SID:\\s*${safeSid}` } } : null,
+      ].filter(Boolean)
+    });
+    if (alreadyApproved) {
+      const existingUser = await User.findById(alreadyApproved.userId);
+      console.log(`[SifaloPay] sifalo-return: already processed, skipping credit.`);
+      return res.status(200).json({ success: true, alreadyProcessed: true, newBalance: existingUser?.balance || 0 });
+    }
+
+    // --- Step 5: Credit user ---
+    let paidAmount = parseFloat(verifyData.amount) || 0;
+    const pendingRequest = await FinancialRequest.findOne({
+      $or: [
+        safeOrderId ? { adminComment: { $regex: `sifalo_order:${safeOrderId}` } } : null,
+        { userId: String(effectiveUserId), status: 'PENDING', type: 'DEPOSIT' }
+      ].filter(Boolean),
+      status: 'PENDING',
+      type: 'DEPOSIT',
+    }).sort({ timestamp: -1 });
+
+    if (pendingRequest && pendingRequest.amount > 0) {
+      const diff = Math.abs(pendingRequest.amount - paidAmount);
+      if (diff <= 0.50 || pendingRequest.amount <= paidAmount * 1.25) {
+        paidAmount = pendingRequest.amount;
+      }
+    }
+    if (paidAmount <= 0) {
+      return res.status(200).json({ success: false, error: 'Invalid amount from gateway' });
+    }
+
+    const updatedUser = await User.findById(effectiveUserId);
+    if (!updatedUser) return res.status(200).json({ success: false, error: 'User not found' });
+
+    updatedUser.balance = (updatedUser.balance || 0) + paidAmount;
+    if (!updatedUser.transactions) updatedUser.transactions = [];
+    updatedUser.transactions.push({
+      type: 'deposit',
+      amount: paidAmount,
+      description: `Sifalo Pay Deposit | SID: ${safeSid || 'N/A'}`,
+      createdAt: new Date()
+    });
+    await updatedUser.save();
+
+    if (pendingRequest) {
+      pendingRequest.status = 'APPROVED';
+      pendingRequest.approverName = 'Sifalo Pay (Auto)';
+      pendingRequest.processedBy = 'sifalo_auto';
+      pendingRequest.amount = paidAmount;
+      pendingRequest.adminComment = `Auto-approved | SID: ${safeSid || 'N/A'} | sifalo_order:${safeOrderId}`;
+      await pendingRequest.save();
+    } else {
+      const lastRequest = await FinancialRequest.findOne().sort({ shortId: -1 }).select('shortId');
+      const nextShortId = (lastRequest?.shortId || 1000) + 1;
+      await FinancialRequest.create({
+        userId: updatedUser._id, userName: updatedUser.username, shortId: nextShortId,
+        type: 'DEPOSIT', paymentMethod: 'Sifalo Pay', amount: paidAmount, status: 'APPROVED',
+        details: `Sifalo Pay Checkout | ${updatedUser.username}`,
+        approverName: 'Sifalo Pay (Auto)', processedBy: 'sifalo_auto',
+        adminComment: `Auto-approved | SID: ${safeSid || 'N/A'} | sifalo_order:${safeOrderId}`,
+      });
+    }
+
+    console.log(`✅ [SifaloPay] sifalo-return: credited $${paidAmount} to ${updatedUser.username}`);
+
+    // Return success to Sifalo — this is what makes it show "Payment Successful" ✅
+    return res.status(200).json({
+      success: true,
+      status: 'success',
+      code: '601',
+      newBalance: updatedUser.balance,
+      amount: paidAmount,
+    });
+
+  } catch (err) {
+    console.error('[SifaloPay] sifalo-return error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
