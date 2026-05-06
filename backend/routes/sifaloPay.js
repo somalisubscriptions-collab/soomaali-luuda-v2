@@ -50,6 +50,7 @@ router.post('/sifalo-checkout', async (req, res) => {
     const returnUrl = `${frontendUrl}/?sifalo_deposit=1&order_id=${orderId}`;
 
     // Build notify URL using BACKEND_URL (must be publicly reachable by Sifalo's servers)
+    const backendUrl = (process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\/$/, '');
     const notifyUrl = `${backendUrl}/api/wallet/sifalo-verify`;
 
     // Call Sifalo Pay checkout init
