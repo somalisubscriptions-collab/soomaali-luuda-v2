@@ -46,10 +46,12 @@ router.post('/sifalo-checkout', async (req, res) => {
 
     // Build return URL — app catches ?sifalo_deposit=1&order_id=... on return
     const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
-    const returnUrl = `${frontendUrl}/?sifalo_deposit=1&order_id=${orderId}`;
+    const backendUrl = (process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\/$/, '');
+    
+    // Use the backend as a proxy for the return URL to avoid CORS issues on the static frontend
+    const returnUrl = `${backendUrl}/api/wallet/sifalo-return?order_id=${orderId}`;
 
     // Build notify URL using BACKEND_URL (must be publicly reachable by Sifalo's servers)
-    const backendUrl = (process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\/$/, '');
     const notifyUrl = `${backendUrl}/api/wallet/sifalo-verify`;
 
     // Call Sifalo Pay checkout init
@@ -113,6 +115,22 @@ router.post('/sifalo-checkout', async (req, res) => {
 // Called after the player returns from the Sifalo Pay checkout page.
 // Verifies the transaction and — if successful — credits the player's balance automatically.
 // ──────────────────────────────────────────────
+// GET /api/wallet/sifalo-return
+// Acts as a proxy to redirect users back to the frontend with correct params.
+// This avoids CORS issues when the gateway tries to fetch/redirect to the static frontend.
+router.get('/sifalo-return', (req, res) => {
+  const { order_id, sid } = req.query;
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  
+  // Construct the final frontend URL
+  let redirectUrl = `${frontendUrl}/?sifalo_deposit=1`;
+  if (order_id) redirectUrl += `&order_id=${order_id}`;
+  if (sid) redirectUrl += `&sid=${sid}`;
+  
+  console.log(`[SifaloPay] Proxy redirecting user to frontend: ${redirectUrl}`);
+  res.redirect(redirectUrl);
+});
+
 router.post('/sifalo-verify', async (req, res) => {
   try {
     const { sid, order_id, userId, orderId: bodyOrderId } = req.body;

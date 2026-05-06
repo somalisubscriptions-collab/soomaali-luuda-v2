@@ -146,7 +146,16 @@ app.use((req, res, next) => {
 app.set('trust proxy', 1); // Trust the first proxy, which is what Render uses
 
 app.use(cors({
-  origin: true, // Reflect the request origin (works with credentials)
+  origin: (origin, callback) => {
+    // Whitelist Sifalo domains explicitly to prevent redirect-fetch CORS errors
+    const whitelist = ['https://pay.sifalo.com', 'https://api.sifalopay.com', 'https://sifalopay.com'];
+    if (!origin || whitelist.includes(origin) || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      callback(null, true);
+    } else {
+      // Reflect the request origin for other domains (development/frontend)
+      callback(null, true);
+    }
+  },
   credentials: true
 }));
 
