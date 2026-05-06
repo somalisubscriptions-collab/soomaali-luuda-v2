@@ -808,4 +808,31 @@ export const adminAPI = {
     }
   },
 
+  async getAuditLogs(page: number = 1, limit: number = 100, userId?: string, action?: string): Promise<any> {
+    const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
+    if (userId) params.append('userId', userId);
+    if (action) params.append('action', action);
+    const url = `${getApiUrl()}/admin/audit-logs?${params.toString()}`;
+    const options = { method: 'GET', headers: getAuthHeaders() };
+    try {
+      const { responseData } = await instrumentedFetch(url, options);
+      return responseData;
+    } catch (error: any) {
+      throw new Error(error.responseData?.error || 'Failed to fetch audit logs');
+    }
+  },
+
+  async getGameHistory(page: number = 1, limit: number = 50, userId?: string): Promise<any> {
+    const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
+    if (userId) params.append('userId', userId);
+    const url = `${getApiUrl()}/admin/game-history?${params.toString()}`;
+    const options = { method: 'GET', headers: getAuthHeaders() };
+    try {
+      const { responseData } = await instrumentedFetch(url, options);
+      return responseData;
+    } catch (error: any) {
+      throw new Error(error.responseData?.error || 'Failed to fetch game history');
+    }
+  },
+
 };

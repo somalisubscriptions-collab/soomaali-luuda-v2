@@ -44,6 +44,7 @@ const Game = require('../models/Game');
 const User = require('../models/User');
 const Revenue = require('../models/Revenue');
 const Loan = require('../models/Loan');
+const { logAudit, logGameHistory } = require('../utils/auditLogger');
 const crypto = require('crypto');
 const aiAgent = require('./aiAgent');
 const { sendAdminAlert } = require('../adminAlert');
@@ -191,6 +192,10 @@ const processGameSettlement = async (gameObj) => {
         // ============================================================================
         // DETAILED PRE-SETTLEMENT AUDIT (Reduced logging)
         // ============================================================================
+        const winnerBalanceBefore = winner.balance || 0;
+        const winnerReservedBefore = winner.reservedBalance || 0;
+        const loserBalanceBefore = loser.balance || 0;
+        const loserReservedBefore = loser.reservedBalance || 0;
 
         // ============================================================================
         // SETTLEMENT CALCULATIONS
@@ -272,6 +277,18 @@ const processGameSettlement = async (gameObj) => {
             console.error(`🚨 CRITICAL: Atomic update failed for winner ${winner._id}. Manual check required.`);
         } else {
             console.log(`✅ ATOMIC PAYOUT SUCCESS: +$${winnings.toFixed(2)} added to user ${winner._id}`);
+            
+            // Audit Log: Winner payout
+            await logAudit({
+                userId: winner._id,
+                username: winner.username,
+                action: 'GAME_WIN',
+                balanceBefore: winnerBalanceBefore,
+                balanceAfter: winnerBalanceBefore + winnings,
+                relatedId: game.gameId,
+                triggeredBy: 'Game Engine',
+                note: `Won game ${game.gameId}. Net profit: +$${profit.toFixed(2)}`
+            });
         }
 
         // AUTO LOAN: Deduct any outstanding loan from winner after they receive winnings
@@ -519,6 +536,19 @@ const processGameSettlement = async (gameObj) => {
             console.error(`🚨 CRITICAL: Atomic update failed for loser ${loser._id}`);
         } else {
             console.log(`✅ ATOMIC DEDUCTION SUCCESS: Stake consumed for user ${loser._id}`);
+            
+            // Audit Log: Loser stake consumed
+            // Note: balance does not change (stake was in reservedBalance), but we log the loss event
+            await logAudit({
+                userId: loser._id,
+                username: loser.username,
+                action: 'GAME_LOSS',
+                balanceBefore: loserBalanceBefore,
+                balanceAfter: loserBalanceBefore,
+                relatedId: game.gameId,
+                triggeredBy: 'Game Engine',
+                note: `Lost game ${game.gameId}. Reserved stake $${stake.toFixed(2)} consumed.`
+            });
         }
 
         // AUTO LOAN: Deduct any outstanding loan from loser too (even if balance goes negative)
@@ -567,6 +597,18 @@ const processGameSettlement = async (gameObj) => {
             `💔 Loser: ${loserUsername} (-$${stake.toFixed(2)})\n` +
             `💰 Stake: $${stake.toFixed(2)} | Rake: $${commission.toFixed(2)}`
         );
+
+        // Record GameHistory permanently
+        await logGameHistory({
+            game: game,
+            winner: winner,
+            loser: loser,
+            stake: stake,
+            winnerPaid: winnings,
+            commission: commission,
+            gemRevenue: gemRevenue, // we have access to it here
+            outcome: 'WIN'
+        });
 
         // Return settlement data for win notification
         return {
@@ -649,6 +691,18 @@ const processGameRefund = async (gameId) => {
 
                     if (user) {
                         console.log(`   ✅ Atomic Refund: $${stake.toFixed(2)} to ${user.username || player.color} (New Balance: $${user.balance.toFixed(2)}, Reserved: $${user.reservedBalance.toFixed(2)})`);
+                        
+                        // Log Audit for Refund
+                        await logAudit({
+                            userId: user._id,
+                            username: user.username,
+                            action: 'GAME_REFUND',
+                            balanceBefore: user.balance - stake, // Approximated from atomic update result
+                            balanceAfter: user.balance,
+                            relatedId: gameId,
+                            triggeredBy: 'Game Engine',
+                            note: `Game ${gameId} cancelled. Refunded stake $${stake.toFixed(2)}.`
+                        });
                     } else {
                         console.error(`   🚨 User not found or update failed for refund: ${player.userId}`);
                     }
@@ -659,6 +713,18 @@ const processGameRefund = async (gameId) => {
         }
 
         console.log(`✅ REFUND COMPLETED successfully for game ${gameId}`);
+        
+        // Log game history as cancelled
+        await logGameHistory({
+            game: game,
+            winner: null,
+            loser: null,
+            stake: stake,
+            winnerPaid: 0,
+            commission: 0,
+            outcome: 'REFUNDED'
+        });
+
         return { success: true, message: 'Refund completed' };
 
     } catch (error) {

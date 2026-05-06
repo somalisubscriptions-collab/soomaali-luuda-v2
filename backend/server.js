@@ -21,6 +21,8 @@ const Loan = require('./models/Loan');
 const { sendAdminAlert } = require('./adminAlert');
 const Expense = require('./models/Expense');
 const CashLog = require('./models/CashLog');
+const AuditLog = require('./models/AuditLog');
+const GameHistory = require('./models/GameHistory');
 
 // ===== USSD AUTOMATION ROUTES =====
 const ussdAutomationRouter = require('./routes/ussdAutomation');
@@ -1858,6 +1860,58 @@ app.delete('/api/admin/withdrawal/:withdrawalId', authenticateToken, authorizeAd
   } catch (error) {
     console.error('Delete withdrawal error:', error);
     res.status(500).json({ error: error.message || 'Failed to delete withdrawal entry.' });
+  }
+});
+
+// GET: Get all audit logs
+app.get('/api/admin/audit-logs', authenticateToken, authorizeAdmin, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 100;
+    const skip = (page - 1) * limit;
+
+    const query = {};
+    if (req.query.userId) query.userId = req.query.userId;
+    if (req.query.action) query.action = req.query.action;
+
+    const logs = await AuditLog.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await AuditLog.countDocuments(query);
+
+    res.json({ logs, total, page, pages: Math.ceil(total / limit) });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch audit logs' });
+  }
+});
+
+// GET: Get all game history
+app.get('/api/admin/game-history', authenticateToken, authorizeAdmin, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const skip = (page - 1) * limit;
+
+    const query = {};
+    if (req.query.userId) {
+      query.$or = [
+        { 'winner.userId': req.query.userId },
+        { 'loser.userId': req.query.userId }
+      ];
+    }
+
+    const history = await GameHistory.find(query)
+      .sort({ endedAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await GameHistory.countDocuments(query);
+
+    res.json({ history, total, page, pages: Math.ceil(total / limit) });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch game history' });
   }
 });
 

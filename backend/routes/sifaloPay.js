@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const FinancialRequest = require('../models/FinancialRequest');
+const { logAudit } = require('../utils/auditLogger');
 
 // io is injected via module.exports(io) pattern — see bottom of file
 let _io = null;
@@ -279,7 +280,8 @@ router.get('/sifalo-return', async (req, res) => {
       const updatedUser = await User.findById(effectiveUserId);
       if (!updatedUser) { console.error('[SifaloPay] BG: user not found'); return; }
 
-      updatedUser.balance = (updatedUser.balance || 0) + paidAmount;
+      const balanceBefore = updatedUser.balance || 0;
+      updatedUser.balance = balanceBefore + paidAmount;
       if (!updatedUser.transactions) updatedUser.transactions = [];
       updatedUser.transactions.push({
         type: 'deposit', amount: paidAmount,
@@ -287,6 +289,18 @@ router.get('/sifalo-return', async (req, res) => {
         createdAt: new Date()
       });
       await updatedUser.save();
+
+      // Audit Log: Sifalo Deposit (Background)
+      await logAudit({
+          userId: updatedUser._id,
+          username: updatedUser.username,
+          action: 'DEPOSIT',
+          balanceBefore: balanceBefore,
+          balanceAfter: updatedUser.balance,
+          relatedId: safeSid || safeOrderId,
+          triggeredBy: 'Sifalo Pay',
+          note: `Background crediting via sifalo-return`
+      });
 
       if (pendingRequest) {
         pendingRequest.status = 'APPROVED';
@@ -496,7 +510,8 @@ router.post('/sifalo-verify', async (req, res) => {
       return res.status(404).json({ success: false, error: 'User account not found' });
     }
 
-    updatedUser.balance = (updatedUser.balance || 0) + paidAmount;
+    const balanceBefore = updatedUser.balance || 0;
+    updatedUser.balance = balanceBefore + paidAmount;
     
     // ADD TRANSACTION RECORD (Crucial for user visibility)
     if (!updatedUser.transactions) updatedUser.transactions = [];
@@ -508,6 +523,18 @@ router.post('/sifalo-verify', async (req, res) => {
     });
 
     await updatedUser.save();
+
+    // Audit Log: Sifalo Deposit (Webhook)
+    await logAudit({
+        userId: updatedUser._id,
+        username: updatedUser.username,
+        action: 'DEPOSIT',
+        balanceBefore: balanceBefore,
+        balanceAfter: updatedUser.balance,
+        relatedId: safeSid || safeOrderId,
+        triggeredBy: 'Sifalo Pay Webhook',
+        note: `Crediting via /sifalo-verify webhook`
+    });
 
     // Mark existing request as APPROVED or create one
     if (pendingRequest) {

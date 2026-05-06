@@ -11,6 +11,7 @@ import TransactionReceipt from '../TransactionReceipt';
 
 import ErrorBoundary from '../ErrorBoundary';
 import AnalyticsDashboard from './AnalyticsDashboard';
+import { AdminDataLogs } from './AdminDataLogs';
 
 // --- Spectator Modal Component ---
 const SpectatorModal: React.FC<{ gameId: string; onClose: () => void }> = ({ gameId, onClose }) => {
@@ -184,7 +185,7 @@ interface SuperAdminDashboardProps {
   onExit: () => void;
 }
 
-type AdminTab = 'dashboard' | 'analytics' | 'users' | 'games' | 'wallet' | 'revenue' | 'recent' | 'settings' | 'password' | 'gems' | 'accounting' | 'daily_registrants' | 'admin_deposits' | 'notifications';
+type AdminTab = 'dashboard' | 'analytics' | 'users' | 'games' | 'wallet' | 'revenue' | 'recent' | 'settings' | 'password' | 'gems' | 'accounting' | 'daily_registrants' | 'admin_deposits' | 'notifications' | 'data_logs';
 
 const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onExit }) => {
   const { user } = useAuth();
@@ -3578,6 +3579,20 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onExit }) => 
               <span>Admin Deposits</span>
             </button>
           )}
+
+          {/* Data Logs - Super Admin Only */}
+          {user?.role === 'SUPER_ADMIN' && (
+            <button
+              onClick={() => setActiveTab('data_logs')}
+              className={`w-full text-left px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-all duration-200 flex items-center gap-2 sm:gap-3 text-sm sm:text-base ${activeTab === 'data_logs'
+                ? 'bg-slate-800 text-white shadow-md font-semibold'
+                : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900'
+                }`}
+            >
+              <span className="text-lg sm:text-xl">📜</span>
+              <span>Data Logs</span>
+            </button>
+          )}
         </nav>
 
         <div className="p-4 border-t border-gray-200">
@@ -3601,6 +3616,10 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onExit }) => 
 
         <div className="animate-in fade-in duration-300">
           {renderContent()}
+
+        {activeTab === 'data_logs' && user?.role === 'SUPER_ADMIN' && (
+          <AdminDataLogs />
+        )}
         </div>
 
         {/* User Details Modal - MODERNIZED */}
