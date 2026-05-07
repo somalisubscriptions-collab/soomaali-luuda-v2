@@ -185,7 +185,7 @@ interface SuperAdminDashboardProps {
   onExit: () => void;
 }
 
-type AdminTab = 'dashboard' | 'analytics' | 'users' | 'games' | 'wallet' | 'revenue' | 'recent' | 'settings' | 'password' | 'gems' | 'accounting' | 'daily_registrants' | 'admin_deposits' | 'notifications' | 'data_logs';
+type AdminTab = 'dashboard' | 'analytics' | 'users' | 'games' | 'wallet' | 'revenue' | 'recent' | 'settings' | 'password' | 'gems' | 'accounting' | 'daily_registrants' | 'admin_deposits' | 'notifications' | 'data_logs' | 'match_duration';
 
 const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onExit }) => {
   const { user } = useAuth();
@@ -1713,287 +1713,222 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onExit }) => 
         };
 
         return (
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-            <div className="p-4 sm:p-6 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="bg-slate-50 rounded-3xl overflow-hidden shadow-xl border border-white/20">
+            <div className="p-6 sm:p-8 bg-white border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
               <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Platform Revenue</h2>
-                <p className="text-sm text-gray-500 mt-1">Track platform earnings & withdrawals</p>
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                  <span className="w-10 h-10 bg-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg">💰</span>
+                  Platform Revenue
+                </h2>
+                <p className="text-slate-500 mt-1 font-medium">Track your platform's financial growth & cash flow</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-3 w-full sm:w-auto">
                 <button
                   onClick={() => setShowWithdrawModal(true)}
-                  className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all flex items-center gap-2"
+                  className="flex-1 sm:flex-none px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-sm font-black shadow-lg shadow-amber-200 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2"
                 >
-                  <span>💸</span> Lacag-Labixid
+                  <span className="text-lg">🏦</span> Lacag-Labixid
                 </button>
-                <button onClick={() => fetchRevenue(revenueFilter)} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all">🔄 Refresh</button>
+                <button 
+                  onClick={() => fetchRevenue(revenueFilter)} 
+                  className="p-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl transition-all"
+                >
+                  🔄
+                </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-br from-purple-50 to-purple-100">
-              <div className="bg-white/50 p-4 rounded-xl border border-purple-100">
-                <p className="text-xs text-purple-600 uppercase font-bold mb-1">Total Revenue</p>
-                <p className="text-2xl sm:text-3xl font-black text-purple-900">${(revenueStats?.totalRevenue || 0).toFixed(2)}</p>
+            {/* Premium Metric Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 sm:p-8 bg-slate-50/50">
+              <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 to-indigo-700 p-6 rounded-[2rem] shadow-xl shadow-purple-200 text-white">
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1">Total Revenue</p>
+                <p className="text-4xl font-black">${(revenueStats?.totalRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                <div className="mt-4 flex items-center gap-2 text-xs font-bold bg-white/10 w-fit px-3 py-1 rounded-full border border-white/10">
+                  <span>🎮</span> All-time Game Commission
+                </div>
               </div>
-              <div className="bg-white/50 p-4 rounded-xl border border-red-100">
-                <p className="text-xs text-red-600 uppercase font-bold mb-1">Total Withdrawn</p>
-                <p className="text-2xl sm:text-3xl font-black text-red-900">${(revenueStats?.totalWithdrawn || 0).toFixed(2)}</p>
+
+              <div className="relative overflow-hidden bg-gradient-to-br from-rose-500 to-red-600 p-6 rounded-[2rem] shadow-xl shadow-red-100 text-white">
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1">Total Withdrawn</p>
+                <p className="text-4xl font-black">${(revenueStats?.totalWithdrawn || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                <div className="mt-4 flex items-center gap-2 text-xs font-bold bg-white/10 w-fit px-3 py-1 rounded-full border border-white/10">
+                  <span>💸</span> Funds processed to wallet
+                </div>
               </div>
-              <div className="bg-white/50 p-4 rounded-xl border border-green-100">
-                <p className="text-xs text-green-600 uppercase font-bold mb-1">Net Available</p>
-                <p className="text-2xl sm:text-3xl font-black text-green-900">${(revenueStats?.netRevenue || 0).toFixed(2)}</p>
+
+              <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 p-6 rounded-[2rem] shadow-xl shadow-emerald-100 text-white">
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1">Net Available</p>
+                <p className="text-4xl font-black">${(revenueStats?.netRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                <div className="mt-4 flex items-center gap-2 text-xs font-bold bg-white/10 w-fit px-3 py-1 rounded-full border border-white/10">
+                  <span>📈</span> Ready for withdrawal
+                </div>
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 border-b border-gray-200">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <p className="text-sm text-gray-600 font-semibold">Filter Range</p>
-                <div className="flex gap-2 flex-wrap w-full sm:w-auto">
-                  {filterOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => fetchRevenue(option.value)}
-                      className={`px-3 py-1.5 text-xs sm:text-sm rounded-lg transition-all ${revenueFilter === option.value
-                        ? 'bg-purple-600 text-white font-semibold shadow-md'
-                        : 'bg-white text-purple-600 hover:bg-purple-100 border border-purple-300'
-                        }`}
+            {/* Modern Filter Section */}
+            <div className="px-6 sm:px-8 pb-8 flex flex-col sm:flex-row justify-between items-center gap-6">
+              <div className="bg-white p-1.5 rounded-2xl border border-slate-200 flex gap-1 w-full sm:w-auto shadow-sm overflow-x-auto">
+                {filterOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => fetchRevenue(option.value)}
+                    className={`whitespace-nowrap px-4 py-2 text-xs font-bold rounded-xl transition-all ${revenueFilter === option.value
+                      ? 'bg-slate-900 text-white shadow-lg'
+                      : 'text-slate-500 hover:bg-slate-100'
+                      }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 text-slate-400 text-xs font-bold">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                LIVE UPDATES ACTIVE
+              </div>
+            </div>
+
+
+
+            <div className="p-4 sm:p-8">
+              {/* Revenue History Feed */}
+              <div className="max-w-5xl mx-auto space-y-6">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/50 backdrop-blur-xl p-6 rounded-[2.5rem] border border-white shadow-xl shadow-slate-200/50">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-gradient-to-tr from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-100 text-2xl">
+                      📈
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-black text-slate-900 tracking-tight">Revenue Feed</h3>
+                      <p className="text-sm text-slate-400 font-bold uppercase tracking-widest">Live Transaction Stream</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="px-4 py-2 bg-slate-900 text-white rounded-2xl text-xs font-black shadow-lg">
+                      {revenueStats?.pagination?.totalItems || 0} TOTAL MATCHES
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {revenueStats?.history.map((rev) => (
+                    <div 
+                      key={rev._id || rev.id} 
+                      className="group bg-white hover:bg-slate-50 rounded-[2.5rem] p-6 sm:p-8 border-2 border-slate-200 shadow-lg transition-all duration-300 hover:shadow-2xl hover:shadow-slate-300 hover:-translate-y-1 relative overflow-hidden"
                     >
-                      {option.label}
-                    </button>
+                      {/* Strong Accent Blur */}
+                      <div className="absolute -right-20 -top-20 w-40 h-40 bg-green-600/10 rounded-full blur-3xl group-hover:bg-green-600/20 transition-all"></div>
+                      
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 relative z-10">
+                        {/* Time & Reference */}
+                        <div className="flex lg:flex-col items-center lg:items-start justify-between lg:justify-center border-b-2 lg:border-b-0 lg:border-r-2 border-slate-200 pb-4 lg:pb-0 lg:pr-8 min-w-[140px]">
+                          <div>
+                            <div className="text-xl font-black text-slate-900">{new Date(rev.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-[12px] font-black text-slate-600 uppercase tracking-tight">
+                                {new Date(rev.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                              {rev.gameDetails?.duration > 0 && (
+                                <div className="px-1.5 py-0.5 bg-slate-100 rounded-md border border-slate-200 text-[10px] font-black text-slate-500 whitespace-nowrap">
+                                  ⏱️ {Math.floor(rev.gameDetails.duration / 60)}m {rev.gameDetails.duration % 60}s
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteRevenueEntry(rev._id || rev.id)}
+                            className="mt-2 p-2 bg-red-100 text-red-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-red-200 shadow-sm"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+
+                        {/* Battle Arena View */}
+                        <div className="flex-1">
+                          <div className="flex items-center justify-center gap-2 sm:gap-6">
+                            {rev.gameDetails?.players.map((p, idx) => (
+                              <React.Fragment key={p.userId}>
+                                <div className="flex flex-col items-center gap-2">
+                                  <div className={`w-14 h-14 sm:w-20 sm:h-20 rounded-[1.5rem] flex items-center justify-center text-2xl sm:text-3xl shadow-xl transition-all duration-500 ${
+                                    rev.gameDetails?.winner?.userId === p.userId 
+                                    ? 'bg-gradient-to-tr from-amber-400 to-yellow-600 border-4 border-white ring-4 ring-amber-100 scale-110 z-10' 
+                                    : 'bg-gradient-to-tr from-rose-500 to-red-700 border-4 border-white shadow-red-100 text-white opacity-80'
+                                  }`}>
+                                    {rev.gameDetails?.winner?.userId === p.userId ? '👑' : '💀'}
+                                  </div>
+                                  <button 
+                                    onClick={() => handleUserClick(p.userId)}
+                                    className={`text-[11px] sm:text-sm font-black uppercase tracking-tight hover:underline transition-colors ${
+                                      rev.gameDetails?.winner?.userId === p.userId ? 'text-amber-700' : 'text-red-700'
+                                    }`}
+                                  >
+                                    {p.username}
+                                  </button>
+                                </div>
+                                {idx < rev.gameDetails.players.length - 1 && (
+                                  <div className="flex flex-col items-center">
+                                    <div className="h-[2px] w-8 sm:w-16 bg-slate-900"></div>
+                                    <span className="text-xs font-black text-slate-900 my-1 italic tracking-widest">VS</span>
+                                    <div className="h-[2px] w-8 sm:w-16 bg-slate-900"></div>
+                                  </div>
+                                )}
+                              </React.Fragment>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Strong Financial Scoreboard */}
+                        <div className="flex items-center justify-between lg:justify-end gap-4 sm:gap-10 bg-slate-100 sm:bg-transparent p-5 sm:p-0 rounded-[1.5rem] border-2 sm:border-0 border-slate-200">
+                          <div className="text-center">
+                            <div className="text-[11px] font-black text-slate-600 uppercase tracking-widest mb-1">Pot Size</div>
+                            <div className="text-lg font-black text-slate-900">
+                              ${(rev.gameDetails?.stake * 2 || 0).toFixed(2)}
+                            </div>
+                          </div>
+                          <div className="w-[2px] h-10 bg-slate-300 hidden sm:block"></div>
+                          <div className="text-center">
+                            <div className="text-[11px] font-black text-slate-900 uppercase tracking-widest mb-1">Rake</div>
+                            <div className="px-6 py-3 bg-gradient-to-br from-green-600 to-emerald-800 rounded-2xl text-white shadow-xl shadow-green-200 ring-2 ring-white">
+                              <div className="text-xl sm:text-2xl font-black leading-none">${rev.amount.toFixed(2)}</div>
+                              <div className="text-[9px] font-black uppercase opacity-90 mt-1 tracking-widest">EARNED</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   ))}
                 </div>
-              </div>
-              <p className="text-xs sm:text-sm text-gray-500 text-right">Showing data for: {getFilterLabel(revenueFilter)}</p>
-            </div>
 
-
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4 sm:p-6">
-              {/* Revenue History */}
-              <div>
-                <h3 className="font-bold text-gray-700 mb-4 text-lg border-b pb-2">Incoming Revenue</h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-300">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Time (EAT)</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Players</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Winner</th>
-                        <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Stake/Pot</th>
-                        <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Rake</th>
-                        <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Total</th>
-                        <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white text-sm">
-                      {revenueStats?.history.map((rev) => (
-                        <tr key={rev._id || rev.id} className="hover:bg-gray-50">
-                          <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
-                            {new Date(rev.timestamp).toLocaleDateString()}
-                          </td>
-                          <td className="px-3 py-2 text-gray-600 whitespace-nowrap font-mono text-xs">
-                            {new Date(rev.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Mogadishu' })}
-                          </td>
-                          <td className="px-3 py-2">
-                            {rev.gameDetails?.players.length > 0 ? (
-                              <div className="flex flex-col gap-1">
-                                {rev.gameDetails.players.map(p => (
-                                  <button
-                                    key={p.userId}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (p.userId) {
-                                        handleUserClick(p.userId);
-                                      }
-                                    }}
-                                    className="text-xs text-gray-700 capitalize text-left hover:text-green-600 hover:underline transition-colors cursor-pointer font-medium"
-                                    title={`View ${p.username || `Player ${p.color}`}'s details`}
-                                  >
-                                    👤 {p.username || `Player ${p.color}`}
-                                  </button>
-                                ))}
-                                <span className="text-[10px] text-gray-500 font-mono mt-1">ID: {rev.gameDetails.gameId}</span>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-gray-500">N/A</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2">
-                            {rev.gameDetails?.winner ? (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (rev.gameDetails?.winner.userId) {
-                                    handleUserClick(rev.gameDetails.winner.userId);
-                                  }
-                                }}
-                                className="text-xs font-bold text-green-600 capitalize hover:text-green-700 hover:underline transition-colors cursor-pointer"
-                                title={`View ${rev.gameDetails.winner.username || rev.gameDetails.winner.color}'s details`}
-                              >
-                                🏆 {rev.gameDetails.winner.username || rev.gameDetails.winner.color}
-                              </button>
-                            ) : (
-                              <span className="text-xs text-gray-500">N/A</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            {rev.gameDetails?.stake ? (
-                              <span className="text-xs font-bold text-blue-600">${rev.gameDetails.stake.toFixed(2)}</span>
-                            ) : (
-                              <span className="text-xs text-gray-500">N/A</span>
-                            )}
-                            <br />
-                            {rev.gameDetails?.stake ? (
-                              <span className="text-[10px] text-blue-400">Pot: ${(rev.gameDetails.stake * 2).toFixed(2)}</span>
-                            ) : null}
-                          </td>
-                          <td className="px-3 py-2 text-purple-600 font-medium text-right">${rev.amount.toFixed(2)}</td>
-                          <td className="px-3 py-2 text-green-600 font-bold text-right">+${(rev.amount || 0).toFixed(2)}</td>
-                          <td className="px-3 py-2 text-right">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteRevenueEntry(rev._id || rev.id);
-                              }}
-                              className="p-1 rounded-full bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700 transition-colors"
-                              title="Delete Revenue Entry"
-                            >
-                              <span className="text-sm">🗑️</span>
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {(!revenueStats?.history || revenueStats.history.length === 0) && (
-                        <tr>
-                          <td colSpan={8} className="px-4 py-8 text-center text-gray-500">No revenue yet.</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                {/* Pagination Controls */}
+                {/* Revolutionary Pagination */}
                 {revenueStats?.pagination && (
-                  <div className="flex items-center justify-between mt-4 border-t border-gray-100 pt-4">
-                    <div className="text-sm text-gray-500">
-                      Page <span className="font-bold">{revenueStats.pagination.currentPage}</span> of <span className="font-bold">{revenueStats.pagination.totalPages}</span>
-                      <span className="mx-2">•</span>
-                      Total: {revenueStats.pagination.totalItems} entries
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-6 py-8">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-white rounded-2xl border border-slate-100 flex items-center justify-center font-black text-slate-900 shadow-sm">
+                        {revenueStats.pagination.currentPage}
+                      </div>
+                      <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-tight">
+                        OF {revenueStats.pagination.totalPages} PAGES<br/>
+                        <span className="text-slate-900">{revenueStats.pagination.totalItems} TRANSACTIONS</span>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 w-full sm:w-auto">
                       <button
                         onClick={() => fetchRevenue(revenueFilter, revenueStats.pagination!.currentPage - 1)}
                         disabled={revenueStats.pagination.currentPage <= 1 || loading}
-                        className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors shadow-sm"
+                        className="flex-1 sm:flex-none px-8 py-4 bg-white hover:bg-slate-50 disabled:opacity-40 text-slate-900 rounded-[1.5rem] text-xs font-black transition-all border border-slate-100 shadow-sm"
                       >
-                        ← Previous
+                        PREVIOUS
                       </button>
                       <button
                         onClick={() => fetchRevenue(revenueFilter, revenueStats.pagination!.currentPage + 1)}
                         disabled={revenueStats.pagination.currentPage >= revenueStats.pagination.totalPages || loading}
-                        className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors shadow-sm"
+                        className="flex-1 sm:flex-none px-8 py-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded-[1.5rem] text-xs font-black transition-all shadow-xl shadow-slate-200"
                       >
-                        Next →
+                        NEXT STREAM
                       </button>
                     </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Withdrawal History */}
-              <div>
-                <div className="flex justify-between items-center mb-4 border-b pb-2">
-                  <h3 className="font-bold text-gray-700 text-lg">Withdrawals Ledger</h3>
-                  <button
-                    onClick={() => {
-                      const csvContent = "data:text/csv;charset=utf-8,"
-                        + "Date,Admin,Destination,Reference,Amount\n"
-                        + (revenueStats?.withdrawals || []).map(w =>
-                          `${new Date(w.timestamp).toISOString()},${w.adminName},${w.destination},${w.reference},${w.amount}`
-                        ).join("\n");
-                      const encodedUri = encodeURI(csvContent);
-                      const link = document.createElement("a");
-                      link.setAttribute("href", encodedUri);
-                      link.setAttribute("download", "revenue_ledger.csv");
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                    }}
-                    className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1 rounded transition-colors border border-gray-300 flex items-center gap-1"
-                  >
-                    <span>⬇️</span> Export CSV
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-300">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Date / Admin</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Details</th>
-                        <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Amount</th>
-                        <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white text-sm">
-                      {revenueStats?.withdrawals?.slice(0, 10).map((wd) => (
-                        <tr key={wd._id || wd.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-3 py-3 whitespace-nowrap">
-                            <div className="text-gray-900 font-medium text-xs">{new Date(wd.timestamp).toLocaleDateString()}</div>
-                            <div className="text-[10px] text-gray-500">{new Date(wd.timestamp).toLocaleTimeString()}</div>
-                            <div className="mt-1 flex items-center gap-1">
-                              <span className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center text-[8px] text-gray-600 font-bold">
-                                {wd.adminName?.charAt(0).toUpperCase() || 'A'}
-                              </span>
-                              <span className="text-xs text-gray-600">{wd.adminName}</span>
-                            </div>
-                          </td>
-                          <td className="px-3 py-3">
-                            <div className="text-gray-900 text-xs font-medium">{wd.destination}</div>
-                            <div className="text-[10px] text-gray-500 mt-0.5 break-words max-w-[150px]">{wd.reference}</div>
-                            <div className="mt-1">
-                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${wd.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                                wd.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-red-100 text-red-800'
-                                }`}>
-                                {wd.status || 'COMPLETED'}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-3 py-3 text-right align-top">
-                            <span className="text-red-600 font-bold text-sm">-${wd.amount.toFixed(2)}</span>
-                          </td>
-                          <td className="px-3 py-3 text-right align-top">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteWithdrawal(wd._id || wd.id);
-                              }}
-                              className="p-1 rounded-full bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700 transition-colors"
-                              title="Delete Withdrawal Entry"
-                            >
-                              <span className="text-sm">🗑️</span>
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {(!revenueStats?.withdrawals || revenueStats.withdrawals.length === 0) && (
-                        <tr>
-                          <td colSpan={3} className="px-4 py-12 text-center">
-                            <div className="flex flex-col items-center justify-center text-gray-400">
-                              <span className="text-3xl mb-2">🧾</span>
-                              <p className="text-sm">No withdrawals recorded yet.</p>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                {revenueStats?.withdrawals && revenueStats.withdrawals.length > 10 && (
-                  <div className="text-center mt-3">
-                    <button className="text-xs text-purple-600 hover:text-purple-800 font-medium">
-                      View All ({revenueStats.withdrawals.length})
-                    </button>
                   </div>
                 )}
               </div>
@@ -3593,6 +3528,20 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onExit }) => 
               <span>Data Logs</span>
             </button>
           )}
+
+          {/* Match Duration - Super Admin Only */}
+          {user?.role === 'SUPER_ADMIN' && (
+            <button
+              onClick={() => setActiveTab('match_duration')}
+              className={`w-full text-left px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-all duration-200 flex items-center gap-2 sm:gap-3 text-sm sm:text-base ${activeTab === 'match_duration'
+                ? 'bg-blue-600 text-white shadow-md font-semibold'
+                : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900'
+                }`}
+            >
+              <span className="text-lg sm:text-xl">⏱️</span>
+              <span>Match Duration</span>
+            </button>
+          )}
         </nav>
 
         <div className="p-4 border-t border-gray-200">
@@ -3617,8 +3566,11 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onExit }) => 
         <div className="animate-in fade-in duration-300">
           {renderContent()}
 
-        {activeTab === 'data_logs' && user?.role === 'SUPER_ADMIN' && (
-          <AdminDataLogs />
+        {(activeTab === 'data_logs' || activeTab === 'match_duration') && user?.role === 'SUPER_ADMIN' && (
+          <AdminDataLogs 
+            key={activeTab} 
+            defaultTab={activeTab === 'match_duration' ? 'analytics' : 'audit'} 
+          />
         )}
         </div>
 

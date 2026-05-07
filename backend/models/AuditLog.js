@@ -12,6 +12,8 @@ const AuditLogSchema = new mongoose.Schema({
       'GAME_WIN',       // Won a game
       'GAME_LOSS',      // Lost a game (stake consumed)
       'GAME_REFUND',    // Game cancelled, stake returned
+      'MATCH_STAKE',    // Stake reserved at game start
+      'MATCH_UNSTAKE',  // Stake returned (for winners/draws)
       'ADMIN_CREDIT',   // Admin manually added money
       'ADMIN_DEBIT',    // Admin manually removed money
       'LOAN_ISSUED',    // Loan given to user

@@ -835,4 +835,15 @@ export const adminAPI = {
     }
   },
 
+  async getMatchStats(): Promise<any> {
+    const url = `${getApiUrl()}/admin/match-stats`;
+    const options = { method: 'GET', headers: getAuthHeaders() };
+    try {
+      const { responseData } = await instrumentedFetch(url, options);
+      return responseData;
+    } catch (error: any) {
+      throw new Error(error.responseData?.error || 'Failed to fetch match stats');
+    }
+  },
+
 };

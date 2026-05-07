@@ -23,6 +23,7 @@ const Expense = require('./models/Expense');
 const CashLog = require('./models/CashLog');
 const AuditLog = require('./models/AuditLog');
 const GameHistory = require('./models/GameHistory');
+const { logAudit, logGameHistory } = require('./utils/auditLogger');
 
 // ===== USSD AUTOMATION ROUTES =====
 const ussdAutomationRouter = require('./routes/ussdAutomation');
@@ -1915,6 +1916,53 @@ app.get('/api/admin/game-history', authenticateToken, authorizeAdmin, async (req
   }
 });
 
+// GET: Global match stats (average duration, total counts)
+app.get('/api/admin/match-stats', authenticateToken, authorizeAdmin, async (req, res) => {
+  try {
+    const stats = await GameHistory.aggregate([
+      {
+        $group: {
+          _id: null,
+          avgDuration: { 
+            $avg: { 
+              $cond: [{ $gt: ["$durationSecs", 0] }, "$durationSecs", null] 
+            } 
+          },
+          totalGames: { $sum: 1 },
+          totalRake: { $sum: "$commission" },
+          minDuration: { $min: { $cond: [{ $gt: ["$durationSecs", 0] }, "$durationSecs", null] } },
+          maxDuration: { $max: "$durationSecs" }
+        }
+      }
+    ]);
+
+    if (!stats || stats.length === 0) {
+      return res.json({
+        avgDuration: 0,
+        totalGames: 0,
+        totalRake: 0,
+        formattedAvg: '0s'
+      });
+    }
+
+    const avg = Math.round(stats[0].avgDuration);
+    const mins = Math.floor(avg / 60);
+    const secs = avg % 60;
+
+    res.json({
+      avgDuration: avg,
+      totalGames: stats[0].totalGames,
+      totalRake: stats[0].totalRake || 0,
+      formattedAvg: `${mins}m ${secs}s`,
+      min: stats[0].minDuration,
+      max: stats[0].maxDuration
+    });
+  } catch (err) {
+    console.error('Stats error:', err);
+    res.status(500).json({ error: 'Failed to calculate match stats' });
+  }
+});
+
 // GET: Get all users (for Super Admin)
 app.get('/api/admin/users', authenticateToken, authorizeAdmin, async (req, res) => {
   try {
@@ -2462,7 +2510,8 @@ app.get('/api/admin/revenue', authenticateToken, async (req, res) => {
           players: playersInfo,
           winner: winnerInfo,
           stake: stake || (rev.totalPot / 2),
-          gameId: rev.gameId
+          gameId: rev.gameId,
+          duration: rev.durationSecs || 0
         }
       };
 
@@ -3816,17 +3865,43 @@ app.post('/api/admin/wallet/request/:id', authenticateToken, async (req, res) =>
           return res.json({ success: true, message: "Request rejected (Balance limit exceeded)", request });
         }
 
+        const balanceBefore = user.balance;
         user.balance = roundCurrency(user.balance + request.amount);
         request.status = 'APPROVED';
         request.adminComment = adminComment || "Approved by admin";
         
+        // Audit Log: Deposit Approved
+        await logAudit({
+          userId: user._id,
+          username: user.username,
+          action: 'DEPOSIT',
+          balanceBefore: balanceBefore,
+          balanceAfter: user.balance,
+          relatedId: request._id.toString(),
+          triggeredBy: 'Admin',
+          note: `Admin approved deposit request: ${request.adminComment}`
+        });
+
         // AUTO LOAN SETTLEMENT
         await autoSettleLoansOnDeposit(user, 'approved deposit request');
       } else if (request.type === 'WITHDRAWAL') {
         if (user.balance >= request.amount) {
+          const balanceBefore = user.balance;
           user.balance = roundCurrency(user.balance - request.amount);
           request.status = 'APPROVED';
           request.adminComment = adminComment || "Approved by admin";
+
+          // Audit Log: Withdrawal Approved
+          await logAudit({
+            userId: user._id,
+            username: user.username,
+            action: 'WITHDRAWAL',
+            balanceBefore: balanceBefore,
+            balanceAfter: user.balance,
+            relatedId: request._id.toString(),
+            triggeredBy: 'Admin',
+            note: `Admin approved withdrawal request`
+          });
         } else {
           request.status = 'REJECTED';
           request.adminComment = "Insufficient funds at approval time";
@@ -4045,6 +4120,7 @@ const createMatch = async (player1, player2, stake) => {
     }
 
     // Reserve balance for Player 1
+    const user1BalanceBefore = user1.balance;
     user1.balance = roundCurrency(user1.balance - stake);
     user1.reservedBalance = roundCurrency((user1.reservedBalance || 0) + stake);
     user1.transactions.push({
@@ -4055,7 +4131,20 @@ const createMatch = async (player1, player2, stake) => {
     });
     await user1.save();
 
+    // Audit Log: Stake Reserved P1
+    await logAudit({
+      userId: user1._id,
+      username: user1.username,
+      action: 'MATCH_STAKE',
+      balanceBefore: user1BalanceBefore,
+      balanceAfter: user1.balance,
+      relatedId: gameId,
+      triggeredBy: 'Matchmaker',
+      note: `Stake reserved for game ${gameId}`
+    });
+
     // Reserve balance for Player 2
+    const user2BalanceBefore = user2.balance;
     user2.balance = roundCurrency(user2.balance - stake);
     user2.reservedBalance = roundCurrency((user2.reservedBalance || 0) + stake);
     user2.transactions.push({
@@ -4065,6 +4154,18 @@ const createMatch = async (player1, player2, stake) => {
       description: `Stake for game ${gameId}`
     });
     await user2.save();
+
+    // Audit Log: Stake Reserved P2
+    await logAudit({
+      userId: user2._id,
+      username: user2.username,
+      action: 'MATCH_STAKE',
+      balanceBefore: user2BalanceBefore,
+      balanceAfter: user2.balance,
+      relatedId: gameId,
+      triggeredBy: 'Matchmaker',
+      note: `Stake reserved for game ${gameId}`
+    });
 
     console.log(`💰 Reserved ${stake} from both players. ${user1.username}: bal=${user1.balance}, reserved=${user1.reservedBalance}. ${user2.username}: bal=${user2.balance}, reserved=${user2.reservedBalance}`);
     // --- End of reservation logic ---
@@ -4117,6 +4218,18 @@ const createMatch = async (player1, player2, stake) => {
           }
         );
 
+        // Audit Log: Refund P1
+        await logAudit({
+          userId: user1._id,
+          username: user1.username,
+          action: 'GAME_REFUND',
+          balanceBefore: user1.balance, // Note: user1.balance was already decremented by stake above
+          balanceAfter: user1.balance + stake,
+          relatedId: gameId,
+          triggeredBy: 'Matchmaker',
+          note: `Match creation failed. Refunded stake $${stake.toFixed(2)}.`
+        });
+
         await User.updateOne(
           { _id: user2._id },
           {
@@ -4135,6 +4248,18 @@ const createMatch = async (player1, player2, stake) => {
             }
           }
         );
+
+        // Audit Log: Refund P2
+        await logAudit({
+          userId: user2._id,
+          username: user2.username,
+          action: 'GAME_REFUND',
+          balanceBefore: user2.balance,
+          balanceAfter: user2.balance + stake,
+          relatedId: gameId,
+          triggeredBy: 'Matchmaker',
+          note: `Match creation failed. Refunded stake $${stake.toFixed(2)}.`
+        });
 
         console.log(`💰 Full atomic refunds completed for both players due to match creation failure`);
       } catch (refundError) {

@@ -8,6 +8,7 @@ const RevenueSchema = new mongoose.Schema({
   totalPot: { type: Number, required: function() { return this.totalPot != null; }, default: 0 }, // Total stake - 0 allowed for gem-only records
   winnerId: { type: String, required: true },
   timestamp: { type: Date, default: Date.now },
+  durationSecs: { type: Number }, // Added to track match length
   reason: { type: String, default: 'Game Commission' },
   gameDetails: {
     type: {

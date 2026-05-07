@@ -330,14 +330,19 @@ const processGameSettlement = async (gameObj) => {
         console.log(`   Rake (10% commission): $${commission.toFixed(2)}`);
         console.log(`   TOTAL REVENUE (rake + gems): $${(commission + gemRevenue).toFixed(2)}`);
 
+        // Calculate duration for analytics
+        const now = new Date();
+        const durationSecs = Math.round((now - (game.createdAt || now)) / 1000);
+
         try {
             const revenue = new Revenue({
                 gameId: game.gameId,
                 amount: commission,
                 gemRevenue: gemRevenue,  // Track gem re-roll earnings
+                durationSecs: durationSecs, // Track match duration
                 totalPot: totalPot,
                 winnerId: winner._id,
-                timestamp: new Date(),
+                timestamp: now,
                 reason: `Game ${game.gameId} completed - ${winner.username} won`,
                 gameDetails: {
                     players: game.players.map(p => ({
